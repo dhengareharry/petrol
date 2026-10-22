@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from 'react';//yghg
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
