@@ -5,6 +5,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import HomeScreen from '../screens/HomeScreen';
 import CatalogScreen from '../screens/CatalogScreen';
 import RedemptionsScreen from '../screens/RedemptionsScreen';
+import UploadFuelScreen from '../screens/UploadFuelScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
 import { COLORS, SPACING } from '../theme';
@@ -12,14 +14,27 @@ import { COLORS, SPACING } from '../theme';
 const TABS = [
   { key: 'home', label: 'Home', icon: '🏠' },
   { key: 'catalog', label: 'Rewards', icon: '🎁' },
+  { key: 'upload', label: 'Upload', icon: '📸' },
   { key: 'redemptions', label: 'History', icon: '📜' },
+  { key: 'profile', label: 'Profile', icon: '👤' },
 ];
 
 export default function CustomerApp() {
   const [activeTab, setActiveTab] = useState('home');
   const insets = useSafeAreaInsets();
   const { customerPhone, logout } = useAuth();
-  const { getCustomerByPhone, requests, requestRedemption } = useSession();
+  const {
+    getCustomerByPhone,
+    requests,
+    requestRedemption,
+    claims,
+    submitFuelClaim,
+    updateProfileName,
+    changePin,
+    addVehicle,
+    updateVehicle,
+    removeVehicle,
+  } = useSession();
 
   const customer = getCustomerByPhone(customerPhone);
 
@@ -45,12 +60,36 @@ export default function CustomerApp() {
       </View>
 
       <View style={styles.screen}>
-        {activeTab === 'home' && <HomeScreen customer={customer} />}
+        {activeTab === 'home' && (
+          <HomeScreen
+            customer={customer}
+            onUploadFuel={() => setActiveTab('upload')}
+            onViewRewards={() => setActiveTab('catalog')}
+          />
+        )}
         {activeTab === 'catalog' && (
           <CatalogScreen
             customer={customer}
             pendingRequests={myPendingRequests}
             onRequestRedeem={(reward) => requestRedemption(customer.phone, reward)}
+          />
+        )}
+        {activeTab === 'upload' && (
+          <UploadFuelScreen
+            customer={customer}
+            claims={claims}
+            onSubmit={submitFuelClaim}
+            onAddVehicle={addVehicle}
+          />
+        )}
+        {activeTab === 'profile' && (
+          <ProfileScreen
+            customer={customer}
+            onUpdateName={updateProfileName}
+            onChangePin={changePin}
+            onAddVehicle={addVehicle}
+            onUpdateVehicle={updateVehicle}
+            onRemoveVehicle={removeVehicle}
           />
         )}
         {activeTab === 'redemptions' && <RedemptionsScreen customer={customer} requests={requests} />}

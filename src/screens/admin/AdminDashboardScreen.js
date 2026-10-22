@@ -1,7 +1,9 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ISSUE_LOG_DEFAULT_DAYS, getIssuedItems } from '../../utils/issueLog';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
-export default function AdminDashboardScreen({ customers, requests }) {
+export default function AdminDashboardScreen({ customers, requests, onOpenIssuedLog }) {
+  const issuedRecent = getIssuedItems(requests, ISSUE_LOG_DEFAULT_DAYS).length;
   const totalCustomers = customers.length;
   const pending = requests.filter((r) => r.status === 'pending');
   const totalOutstanding = customers.reduce((sum, c) => sum + c.points, 0);
@@ -19,6 +21,17 @@ export default function AdminDashboardScreen({ customers, requests }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <Pressable style={styles.issuedButton} onPress={onOpenIssuedLog}>
+          <Text style={styles.issuedIcon}>📦</Text>
+          <View style={styles.issuedText}>
+            <Text style={styles.issuedTitle}>Items Issued Log</Text>
+            <Text style={styles.issuedSubtitle}>
+              {issuedRecent} item{issuedRecent === 1 ? '' : 's'} issued in the last {ISSUE_LOG_DEFAULT_DAYS} days
+            </Text>
+          </View>
+          <Text style={styles.issuedArrow}>›</Text>
+        </Pressable>
+
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{totalCustomers}</Text>
@@ -91,6 +104,36 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.lg,
     paddingBottom: SPACING.xxxl,
+  },
+  issuedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    gap: SPACING.md,
+  },
+  issuedIcon: {
+    fontSize: 28,
+  },
+  issuedText: {
+    flex: 1,
+  },
+  issuedTitle: {
+    color: COLORS.textOnPrimary,
+    fontSize: FONT.label,
+    fontWeight: '800',
+  },
+  issuedSubtitle: {
+    color: COLORS.textOnPrimaryMuted,
+    fontSize: 12,
+    marginTop: SPACING.xs,
+  },
+  issuedArrow: {
+    color: COLORS.accent,
+    fontSize: 24,
+    fontWeight: '800',
   },
   statsGrid: {
     flexDirection: 'row',

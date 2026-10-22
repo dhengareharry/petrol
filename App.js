@@ -4,7 +4,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import RoleSelectScreen from './src/screens/RoleSelectScreen';
-import AdminLoginScreen from './src/screens/AdminLoginScreen';
+import StaffLoginScreen from './src/screens/StaffLoginScreen';
 import CustomerLoginScreen from './src/screens/CustomerLoginScreen';
 import AdminApp from './src/apps/AdminApp';
 import CustomerApp from './src/apps/CustomerApp';
@@ -13,7 +13,7 @@ import { SessionProvider, useSession } from './src/context/SessionContext';
 import { COLORS } from './src/theme';
 
 function AppRouter() {
-  const [view, setView] = useState('role'); // 'role' | 'adminLogin' | 'customerLogin'
+  const [view, setView] = useState('role'); // 'role' | 'staffLogin' | 'customerLogin'
   const auth = useAuth();
   const session = useSession();
   const wasLoggedIn = useRef(false);
@@ -35,7 +35,7 @@ function AppRouter() {
     );
   }
 
-  if (auth.role === 'admin') {
+  if (auth.role === 'admin' || auth.role === 'cashier') {
     return <AdminApp />;
   }
 
@@ -43,8 +43,8 @@ function AppRouter() {
     return <CustomerApp />;
   }
 
-  if (view === 'adminLogin') {
-    return <AdminLoginScreen onLogin={auth.loginAsAdmin} onBack={() => setView('role')} />;
+  if (view === 'staffLogin') {
+    return <StaffLoginScreen onLogin={auth.loginAsStaff} onBack={() => setView('role')} />;
   }
 
   if (view === 'customerLogin') {
@@ -60,7 +60,7 @@ function AppRouter() {
     );
   }
 
-  return <RoleSelectScreen onPickCustomer={() => setView('customerLogin')} onPickAdmin={() => setView('adminLogin')} />;
+  return <RoleSelectScreen onPickCustomer={() => setView('customerLogin')} onPickStaff={() => setView('staffLogin')} />;
 }
 
 export default function App() {

@@ -87,6 +87,7 @@ export default function RedeemRequestsScreen({ requests, onApprove, onReject }) 
           <View style={styles.statusRow}>
             <Text style={[styles.statusBadge, item.status === 'approved' ? styles.approvedBadge : styles.rejectedBadge]}>
               {item.status === 'approved' ? 'Approved' : 'Rejected'}
+              {item.resolvedBy ? ` · by ${item.resolvedBy}` : ''}
             </Text>
           </View>
         )}

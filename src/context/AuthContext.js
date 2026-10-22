@@ -1,41 +1,46 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { verifyAdminLogin } from '../auth';
 import { verifyCustomerLogin } from '../storage/customerStore';
+import { getStaffById, verifyStaffLogin } from '../storage/staffStore';
 import { clearSession, getSession, saveSession } from '../storage/authStore';
 
 const AuthContext = createContext(null);
 
+// Session shapes: { role: 'customer', phone } or { role: 'staff', staffId }.
 export function AuthProvider({ children }) {
-  const [role, setRole] = useState(null);
   const [customerPhone, setCustomerPhone] = useState(null);
+  const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSession()
-      .then((session) => {
-        if (session?.role === 'admin') {
-          setRole('admin');
-        } else if (session?.role === 'customer' && session.phone) {
-          setRole('customer');
-          setCustomerPhone(session.phone);
+    async function restore() {
+      const session = await getSession();
+      if (session?.role === 'customer' && session.phone) {
+        setCustomerPhone(session.phone);
+      } else if (session?.role === 'staff' && session.staffId) {
+        const account = await getStaffById(session.staffId);
+        if (account?.active) {
+          setStaff({ id: account.id, name: account.name, role: account.role });
+        } else {
+          await clearSession();
         }
-      })
-      .finally(() => setLoading(false));
+      } else if (session) {
+        await clearSession();
+      }
+    }
+    restore().finally(() => setLoading(false));
   }, []);
 
-  const loginAsAdmin = useCallback(async (username, password) => {
-    if (!verifyAdminLogin(username, password)) {
-      throw new Error('Incorrect username or password.');
-    }
-    await saveSession({ role: 'admin' });
-    setRole('admin');
+  const loginAsStaff = useCallback(async (username, password) => {
+    const account = await verifyStaffLogin(username, password);
+    await saveSession({ role: 'staff', staffId: account.id });
     setCustomerPhone(null);
+    setStaff({ id: account.id, name: account.name, role: account.role });
   }, []);
 
   const loginAsCustomer = useCallback(async (phone, pin) => {
     const customer = await verifyCustomerLogin(phone.trim(), pin.trim());
     await saveSession({ role: 'customer', phone: customer.phone });
-    setRole('customer');
+    setStaff(null);
     setCustomerPhone(customer.phone);
     return customer;
   }, []);
@@ -44,19 +49,21 @@ export function AuthProvider({ children }) {
   // (SessionContext.addCustomer), to log the app into that new account.
   const loginCustomerSession = useCallback(async (phone) => {
     await saveSession({ role: 'customer', phone });
-    setRole('customer');
+    setStaff(null);
     setCustomerPhone(phone);
   }, []);
 
   const logout = useCallback(async () => {
     await clearSession();
-    setRole(null);
     setCustomerPhone(null);
+    setStaff(null);
   }, []);
 
+  const role = customerPhone ? 'customer' : staff ? staff.role : null;
+
   const value = useMemo(
-    () => ({ loading, role, customerPhone, loginAsAdmin, loginAsCustomer, loginCustomerSession, logout }),
-    [loading, role, customerPhone, loginAsAdmin, loginAsCustomer, loginCustomerSession, logout]
+    () => ({ loading, role, customerPhone, staff, loginAsStaff, loginAsCustomer, loginCustomerSession, logout }),
+    [loading, role, customerPhone, staff, loginAsStaff, loginAsCustomer, loginCustomerSession, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

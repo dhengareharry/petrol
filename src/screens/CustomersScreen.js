@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import VehicleNumberInput from '../components/VehicleNumberInput';
 import { getTierInfo } from '../utils/tiers';
+import { vehicleSummary } from '../utils/vehicles';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 function notify(title, message) {
@@ -16,6 +18,7 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,7 +26,10 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
     const q = query.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.phone.includes(q)
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.vehicles.some((v) => v.number.toLowerCase().replace(/ /g, '').includes(q.replace(/ /g, '')))
     );
   }, [customers, query]);
 
@@ -34,9 +40,15 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
     }
     setSubmitting(true);
     try {
-      await onCreate({ name: name.trim(), phone: phone.trim(), vehicleNumber: vehicleNumber.trim() });
+      await onCreate({
+        name: name.trim(),
+        phone: phone.trim(),
+        vehicleModel: vehicleModel.trim(),
+        vehicleNumber: vehicleNumber.trim(),
+      });
       setName('');
       setPhone('');
+      setVehicleModel('');
       setVehicleNumber('');
       setShowForm(false);
     } catch (err) {
@@ -55,7 +67,7 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
           <Text style={styles.name}>{item.name}</Text>
           <Text style={styles.phone}>
             {item.phone}
-            {item.vehicleNumber ? ` · ${item.vehicleNumber}` : ''}
+            {item.vehicles.length ? ` · ${vehicleSummary(item)}` : ''}
           </Text>
         </View>
         <Text style={styles.points}>{item.points.toLocaleString()} pts</Text>
@@ -91,8 +103,14 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
           />
           <TextInput
             style={styles.input}
-            placeholder="Vehicle number (optional)"
+            placeholder="Vehicle model (optional, e.g. Land Cruiser)"
             placeholderTextColor={COLORS.textMuted}
+            value={vehicleModel}
+            onChangeText={setVehicleModel}
+          />
+          <VehicleNumberInput
+            style={styles.input}
+            placeholder="Vehicle number (optional)"
             value={vehicleNumber}
             onChangeText={setVehicleNumber}
           />
@@ -109,7 +127,7 @@ export default function CustomersScreen({ customers, onSelect, onCreate }) {
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.search}
-          placeholder="Search by name or phone"
+          placeholder="Search by name, phone or vehicle no."
           placeholderTextColor={COLORS.textMuted}
           value={query}
           onChangeText={setQuery}

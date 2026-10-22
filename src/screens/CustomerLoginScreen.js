@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import VehicleNumberInput from '../components/VehicleNumberInput';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 export default function CustomerLoginScreen({ onLogin, onRegister, onBack }) {
@@ -8,6 +9,7 @@ export default function CustomerLoginScreen({ onLogin, onRegister, onBack }) {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
@@ -18,6 +20,7 @@ export default function CustomerLoginScreen({ onLogin, onRegister, onBack }) {
     setPhone('');
     setPin('');
     setName('');
+    setVehicleModel('');
     setVehicleNumber('');
     setReferralCode('');
   }
@@ -53,6 +56,7 @@ export default function CustomerLoginScreen({ onLogin, onRegister, onBack }) {
       await onRegister({
         name: name.trim(),
         phone: phone.trim(),
+        vehicleModel: vehicleModel.trim(),
         vehicleNumber: vehicleNumber.trim(),
         pin: pin.trim(),
         referredByPhone: referralCode.trim(),
@@ -100,13 +104,21 @@ export default function CustomerLoginScreen({ onLogin, onRegister, onBack }) {
         />
 
         {mode === 'register' && (
-          <TextInput
-            style={styles.input}
-            placeholder="Vehicle number (optional)"
-            placeholderTextColor={COLORS.textMuted}
-            value={vehicleNumber}
-            onChangeText={setVehicleNumber}
-          />
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Vehicle model (optional, e.g. Land Cruiser)"
+              placeholderTextColor={COLORS.textMuted}
+              value={vehicleModel}
+              onChangeText={setVehicleModel}
+            />
+            <VehicleNumberInput
+              style={styles.input}
+              placeholder="Vehicle number (optional)"
+              value={vehicleNumber}
+              onChangeText={setVehicleNumber}
+            />
+          </>
         )}
 
         <TextInput

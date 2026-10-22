@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
-export default function RoleSelectScreen({ onPickCustomer, onPickAdmin }) {
+export default function RoleSelectScreen({ onPickCustomer, onPickStaff }) {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.logo}>⛽</Text>
@@ -15,10 +15,10 @@ export default function RoleSelectScreen({ onPickCustomer, onPickAdmin }) {
         <Text style={styles.cardText}>Check your points, browse rewards, and request redemptions.</Text>
       </Pressable>
 
-      <Pressable style={[styles.card, styles.adminCard]} onPress={onPickAdmin}>
+      <Pressable style={[styles.card, styles.adminCard]} onPress={onPickStaff}>
         <Text style={styles.cardIcon}>🛠️</Text>
-        <Text style={styles.cardTitle}>I'm an Admin</Text>
-        <Text style={styles.cardText}>Manage customers, credit fuel points, and approve redemptions.</Text>
+        <Text style={styles.cardTitle}>Staff Login</Text>
+        <Text style={styles.cardText}>Cashiers record fuel fill-ups; admins review proofs and manage the program.</Text>
       </Pressable>
     </SafeAreaView>
   );

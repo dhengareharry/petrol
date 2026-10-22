@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
-export default function AdminLoginScreen({ onLogin, onBack }) {
+export default function StaffLoginScreen({ onLogin, onBack }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,8 +30,8 @@ export default function AdminLoginScreen({ onLogin, onBack }) {
 
       <View style={styles.content}>
         <Text style={styles.icon}>🛠️</Text>
-        <Text style={styles.title}>Admin Login</Text>
-        <Text style={styles.subtitle}>Manage customers and redemption requests</Text>
+        <Text style={styles.title}>Staff Login</Text>
+        <Text style={styles.subtitle}>Cashiers and admins sign in here</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -56,7 +56,7 @@ export default function AdminLoginScreen({ onLogin, onBack }) {
           <Text style={styles.submitButtonText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
         </Pressable>
 
-        <Text style={styles.hint}>Demo credentials: admin / admin123</Text>
+        <Text style={styles.hint}>Demo: admin / admin123 · cashier / cashier123</Text>
       </View>
     </KeyboardAvoidingView>
     </SafeAreaView>

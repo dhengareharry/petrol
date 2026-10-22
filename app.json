@@ -6,6 +6,21 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera to photograph your vehicle dashboard after fuelling.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to verify you fuelled at our pump."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true
     },

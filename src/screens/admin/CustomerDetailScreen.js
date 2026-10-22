@@ -1,43 +1,16 @@
-import { useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getTierInfo } from '../../utils/tiers';
+import { vehicleLabel } from '../../utils/vehicles';
+import FuelEntryForm from './FuelEntryForm';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
-
-function notify(title, message) {
-  if (Platform.OS === 'web') {
-    window.alert(`${title}\n\n${message}`);
-    return;
-  }
-  Alert.alert(title, message);
-}
 
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-const QUICK_AMOUNTS = [100, 250, 500, 1000];
-
 export default function CustomerDetailScreen({ customer, onBack, onCreditPoints }) {
-  const [litres, setLitres] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const { current, next, pointsToNext } = getTierInfo(customer.lifetimePoints);
-
-  async function submit(amount) {
-    const value = Number(amount);
-    if (!value || value <= 0) {
-      notify('Invalid amount', 'Enter a litre amount greater than 0.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await onCreditPoints(customer.phone, value);
-      setLitres('');
-      notify('Points added', `${value.toLocaleString()} points credited to ${customer.name}.`);
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   return (
     <View style={styles.container}>
@@ -55,7 +28,11 @@ export default function CustomerDetailScreen({ customer, onBack, onCreditPoints 
             <View style={styles.profileText}>
               <Text style={styles.profileName}>{customer.name}</Text>
               <Text style={styles.profileLine}>{customer.phone}</Text>
-              {customer.vehicleNumber ? <Text style={styles.profileLine}>{customer.vehicleNumber}</Text> : null}
+              {customer.vehicles.map((v) => (
+                <Text key={v.id} style={styles.profileLine}>
+                  🚗 {vehicleLabel(v)}
+                </Text>
+              ))}
             </View>
           </View>
           <View style={styles.statRow}>
@@ -74,36 +51,12 @@ export default function CustomerDetailScreen({ customer, onBack, onCreditPoints 
           <Text style={styles.joinedText}>Joined {formatDate(customer.joinedDate)}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Credit Fuel Points</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            placeholder="Litres filled"
-            placeholderTextColor={COLORS.textMuted}
-            value={litres}
-            onChangeText={setLitres}
-          />
-          <Pressable
-            style={[styles.primaryButton, submitting && styles.disabled]}
-            disabled={submitting}
-            onPress={() => submit(litres)}
-          >
-            <Text style={styles.primaryButtonText}>{submitting ? 'Adding…' : 'Add Points'}</Text>
-          </Pressable>
-          <View style={styles.quickRow}>
-            {QUICK_AMOUNTS.map((amount) => (
-              <Pressable
-                key={amount}
-                style={[styles.quickButton, submitting && styles.disabled]}
-                disabled={submitting}
-                onPress={() => submit(amount)}
-              >
-                <Text style={styles.quickButtonText}>+{amount}</Text>
-              </Pressable>
-            ))}
+        {onCreditPoints ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Fuel Filling</Text>
+            <FuelEntryForm customer={customer} onCreditPoints={onCreditPoints} />
           </View>
-        </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Activity History</Text>
@@ -120,7 +73,10 @@ export default function CustomerDetailScreen({ customer, onBack, onCreditPoints 
                 />
                 <View style={styles.historyTextWrap}>
                   <Text style={styles.historyLabel}>{entry.label}</Text>
-                  <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
+                  <Text style={styles.historyDate}>
+                    {formatDate(entry.date)}
+                    {entry.by ? ` · by ${entry.by}` : ''}
+                  </Text>
                 </View>
                 <Text style={[styles.historyAmount, entry.type === 'redeem' ? styles.negative : styles.positive]}>
                   {entry.type === 'redeem' ? '-' : '+'}
@@ -226,48 +182,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderInput,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    fontSize: FONT.label,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: COLORS.textOnPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    flexWrap: 'wrap',
-    marginTop: SPACING.md,
-  },
-  quickButton: {
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.sm,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  quickButtonText: {
-    color: COLORS.textPrimary,
-    fontWeight: '700',
-    fontSize: 13,
   },
   emptyText: {
     fontSize: FONT.body,
