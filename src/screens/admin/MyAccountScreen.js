@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { MIN_STAFF_PASSWORD_LENGTH } from '../../storage/staffStore';
+import { MIN_STAFF_PASSWORD_LENGTH } from '../../rules';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
 export default function MyAccountScreen({ account, onChangePassword, onBack }) {

@@ -34,6 +34,8 @@ export default function CustomerApp() {
     addVehicle,
     updateVehicle,
     removeVehicle,
+    loading,
+    refresh,
   } = useSession();
 
   const customer = getCustomerByPhone(customerPhone);
@@ -41,7 +43,17 @@ export default function CustomerApp() {
   if (!customer) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading your account…</Text>
+        <Text style={styles.loadingText}>{loading ? 'Loading your account…' : "Couldn't load your account."}</Text>
+        {!loading && (
+          <>
+            <Pressable onPress={() => refresh().catch(() => undefined)}>
+              <Text style={styles.retryLink}>Try again</Text>
+            </Pressable>
+            <Pressable onPress={logout}>
+              <Text style={styles.logoutLink}>Logout</Text>
+            </Pressable>
+          </>
+        )}
       </View>
     );
   }
@@ -127,6 +139,12 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.textSecondary,
     fontSize: 14,
+  },
+  retryLink: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: SPACING.lg,
   },
   topStrip: {
     flexDirection: 'row',

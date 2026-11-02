@@ -2,16 +2,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ISSUE_LOG_DEFAULT_DAYS, getIssuedItems } from '../../utils/issueLog';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
-export default function AdminDashboardScreen({ customers, requests, onOpenIssuedLog }) {
+export default function AdminDashboardScreen({ customers, requests, redeemedPoints, onOpenIssuedLog }) {
   const issuedRecent = getIssuedItems(requests, ISSUE_LOG_DEFAULT_DAYS).length;
   const totalCustomers = customers.length;
   const pending = requests.filter((r) => r.status === 'pending');
   const totalOutstanding = customers.reduce((sum, c) => sum + c.points, 0);
   const totalIssued = customers.reduce((sum, c) => sum + c.lifetimePoints, 0);
-  const totalRedeemed = customers.reduce(
-    (sum, c) => sum + c.history.filter((h) => h.type === 'redeem').reduce((s, h) => s + h.amount, 0),
-    0
-  );
+  const totalRedeemed = redeemedPoints;
 
   return (
     <View style={styles.container}>

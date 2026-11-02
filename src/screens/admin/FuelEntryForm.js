@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { REWARDS } from '../../data/rewards';
-import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES, MIN_FUEL_LITRES } from '../../storage/customerStore';
+import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES, MIN_FUEL_LITRES } from '../../rules';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
 function notify(title, message) {

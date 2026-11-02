@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { getClaimPhoto } from '../storage/fuelClaimStore';
+import { apiRequest } from '../api/client';
 import { COLORS, RADIUS } from '../theme';
 
 export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
@@ -9,11 +9,15 @@ export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
 
   useEffect(() => {
     let cancelled = false;
-    getClaimPhoto(claimId).then((value) => {
-      if (cancelled) return;
-      if (value) setUri(value);
-      else setMissing(true);
-    });
+    apiRequest(`/fuel-claims/${claimId}/photo?as=dataUri`, { timeoutMs: 30000 })
+      .then((result) => {
+        if (cancelled) return;
+        if (result?.dataUri) setUri(result.dataUri);
+        else setMissing(true);
+      })
+      .catch(() => {
+        if (!cancelled) setMissing(true);
+      });
     return () => {
       cancelled = true;
     };

@@ -1,40 +1,45 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Logo from '../components/Logo';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 export default function RoleSelectScreen({ onPickCustomer, onPickStaff }) {
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.logo}>⛽</Text>
-      <Text style={styles.title}>Pump Rewards</Text>
-      <Text style={styles.subtitle}>Fuel loyalty &amp; redemption program</Text>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Logo size={130} style={styles.logo} />
+        <Text style={styles.title}>Oasis Fuel Rewards</Text>
+        <Text style={styles.subtitle}>Fuel loyalty &amp; redemption program</Text>
 
-      <Pressable style={[styles.card, styles.customerCard]} onPress={onPickCustomer}>
-        <Text style={styles.cardIcon}>👤</Text>
-        <Text style={styles.cardTitle}>I'm a Customer</Text>
-        <Text style={styles.cardText}>Check your points, browse rewards, and request redemptions.</Text>
-      </Pressable>
+        <Pressable style={[styles.card, styles.customerCard]} onPress={onPickCustomer}>
+          <Text style={styles.cardIcon}>👤</Text>
+          <Text style={styles.cardTitle}>I'm a Customer</Text>
+          <Text style={styles.cardText}>Check your points, browse rewards, and request redemptions.</Text>
+        </Pressable>
 
-      <Pressable style={[styles.card, styles.adminCard]} onPress={onPickStaff}>
-        <Text style={styles.cardIcon}>🛠️</Text>
-        <Text style={styles.cardTitle}>Staff Login</Text>
-        <Text style={styles.cardText}>Cashiers record fuel fill-ups; admins review proofs and manage the program.</Text>
-      </Pressable>
+        <Pressable style={[styles.card, styles.adminCard]} onPress={onPickStaff}>
+          <Text style={styles.cardIcon}>🛠️</Text>
+          <Text style={styles.cardTitle}>Staff Login</Text>
+          <Text style={styles.cardText}>Cashiers record fuel fill-ups; admins review proofs and manage the program.</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: COLORS.primary,
+  },
+  container: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING.xl,
   },
   logo: {
-    fontSize: 56,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   title: {
     color: COLORS.textOnPrimary,

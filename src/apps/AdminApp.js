@@ -1,4 +1,4 @@
-import { useState } from 'react';//yghg
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,6 +58,8 @@ export default function AdminApp() {
     changeOwnPassword,
     setStaffActive,
     getCustomerByPhone,
+    loadHistory,
+    redeemedPoints,
   } = useSession();
 
   // Prefer the stored account so name/username edits show up immediately.
@@ -72,6 +74,13 @@ export default function AdminApp() {
   const rejectRedeem = (id) => rejectRequest(id, by);
 
   const viewingCustomer = viewingPhone ? getCustomerByPhone(viewingPhone) : null;
+
+  // A customer's points ledger is loaded when their page opens, and again whenever their balance changes.
+  const viewingPoints = viewingCustomer?.lifetimePoints;
+  const viewingBalance = viewingCustomer?.points;
+  useEffect(() => {
+    if (viewingPhone) loadHistory(viewingPhone).catch(() => undefined);
+  }, [viewingPhone, viewingPoints, viewingBalance, loadHistory]);
 
   function goToTab(key) {
     setViewingPhone(null);
@@ -130,7 +139,12 @@ export default function AdminApp() {
     }
 
     return (
-      <AdminDashboardScreen customers={customers} requests={requests} onOpenIssuedLog={() => setIssuedLogOpen(true)} />
+      <AdminDashboardScreen
+        customers={customers}
+        requests={requests}
+        redeemedPoints={redeemedPoints}
+        onOpenIssuedLog={() => setIssuedLogOpen(true)}
+      />
     );
   }
 

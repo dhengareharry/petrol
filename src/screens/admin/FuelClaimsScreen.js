@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ClaimPhoto from '../../components/ClaimPhoto';
-import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES } from '../../storage/customerStore';
+import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES } from '../../rules';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
 function notify(title, message) {

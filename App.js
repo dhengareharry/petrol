@@ -10,6 +10,7 @@ import AdminApp from './src/apps/AdminApp';
 import CustomerApp from './src/apps/CustomerApp';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SessionProvider, useSession } from './src/context/SessionContext';
+import Logo from './src/components/Logo';
 import { COLORS } from './src/theme';
 
 function AppRouter() {
@@ -30,6 +31,7 @@ function AppRouter() {
   if (auth.loading || session.loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
+        <Logo size={120} />
         <Text style={styles.loadingText}>Loading…</Text>
       </SafeAreaView>
     );
@@ -51,10 +53,7 @@ function AppRouter() {
     return (
       <CustomerLoginScreen
         onLogin={auth.loginAsCustomer}
-        onRegister={async (values) => {
-          const created = await session.addCustomer(values);
-          await auth.loginCustomerSession(created.phone);
-        }}
+        onRegister={auth.registerAsCustomer}
         onBack={() => setView('role')}
       />
     );
@@ -92,5 +91,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: COLORS.textSecondary,
     fontSize: 14,
+    marginTop: 12,
   },
 });

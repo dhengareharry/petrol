@@ -1,216 +1,279 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  addPoints as storeAddPoints,
-  addReferralBonus as storeAddReferralBonus,
-  addVehicle as storeAddVehicle,
-  changePin as storeChangePin,
-  createCustomer as storeCreateCustomer,
-  getAllCustomers,
-  getCustomer as storeGetCustomer,
-  removeVehicle as storeRemoveVehicle,
-  updateProfileName as storeUpdateProfileName,
-  updateVehicle as storeUpdateVehicle,
-} from '../storage/customerStore';
-import {
-  approveClaim as storeApproveClaim,
-  createClaim as storeCreateClaim,
-  getAllClaims,
-  rejectClaim as storeRejectClaim,
-} from '../storage/fuelClaimStore';
-import {
-  createStaff as storeCreateStaff,
-  getAllStaff,
-  changeOwnPassword as storeChangeOwnPassword,
-  setStaffActive as storeSetStaffActive,
-  updateStaff as storeUpdateStaff,
-} from '../storage/staffStore';
-import {
-  approveRequest as storeApproveRequest,
-  createRequest as storeCreateRequest,
-  getAllRequests,
-  rejectRequest as storeRejectRequest,
-} from '../storage/requestStore';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { apiRequest, apiRequestAll } from '../api/client';
+import { toClaim, toCustomer, toHistoryEntry, toRequest, toStaff } from '../api/mappers';
+import { useAuth } from './AuthContext';
 
 const SessionContext = createContext(null);
 
+// Staff don't trigger the changes that matter to them (customers' uploads and requests), so poll for them.
+const POLL_MS = 20000;
+
+const vehicleBody = ({ model, number }) => ({ number, model: model || undefined });
+
+// All data lives in the backend database. This context loads what the signed-in user may see — a customer sees only
+// their own account, a cashier/admin sees everyone — and exposes the same actions the screens always used.
 export function SessionProvider({ children }) {
+  const { role, customerPhone } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [requests, setRequests] = useState([]);
   const [claims, setClaims] = useState([]);
   const [staffList, setStaffList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [redeemedPoints, setRedeemedPoints] = useState(0);
+  const [historyByPhone, setHistoryByPhone] = useState({});
+  const [loading, setLoading] = useState(false);
+  const roleRef = useRef(role);
+  roleRef.current = role;
 
-  const refresh = useCallback(async () => {
-    const [customerList, requestList, claimList, staff] = await Promise.all([
-      getAllCustomers(),
-      getAllRequests(),
-      getAllClaims(),
-      getAllStaff(),
+  const loadCustomerData = useCallback(async () => {
+    const [me, history, myRequests, myClaims] = await Promise.all([
+      apiRequest('/me'),
+      apiRequestAll('/me/history'),
+      apiRequest('/redemption-requests/mine'),
+      apiRequest('/fuel-claims/mine'),
     ]);
-    setCustomers(customerList);
-    setRequests(requestList);
-    setClaims(claimList);
-    setStaffList(staff);
+    const customer = { ...toCustomer(me), history: history.map(toHistoryEntry) };
+    return {
+      customers: [customer],
+      requests: myRequests.map((r) => toRequest(r, customer)),
+      claims: myClaims.map((c) => toClaim(c, customer)),
+    };
   }, []);
 
+  const loadStaffData = useCallback(async (isAdmin) => {
+    const [customerList, requestList, claimList, staff, dashboard] = await Promise.all([
+      apiRequestAll('/customers'),
+      apiRequestAll('/redemption-requests'),
+      apiRequestAll('/fuel-claims'),
+      isAdmin ? apiRequest('/staff') : Promise.resolve([]),
+      isAdmin ? apiRequest('/reports/dashboard') : Promise.resolve(null),
+    ]);
+    return {
+      customers: customerList.map(toCustomer),
+      requests: requestList.map((r) => toRequest(r)),
+      claims: claimList.map((c) => toClaim(c)),
+      staffList: staff.map(toStaff),
+      redeemedPoints: dashboard?.pointsRedeemed ?? 0,
+    };
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const current = roleRef.current;
+    if (!current) return;
+    const data = current === 'customer' ? await loadCustomerData() : await loadStaffData(current === 'admin');
+    if (roleRef.current !== current) return; // signed out (or switched user) while loading
+    setCustomers(data.customers);
+    setRequests(data.requests);
+    setClaims(data.claims);
+    setStaffList(data.staffList ?? []);
+    setRedeemedPoints(data.redeemedPoints ?? 0);
+  }, [loadCustomerData, loadStaffData]);
+
+  // Load on sign-in; wipe everything on sign-out so the next user never sees the previous user's data.
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
-  }, [refresh]);
+    if (!role) {
+      setCustomers([]);
+      setRequests([]);
+      setClaims([]);
+      setStaffList([]);
+      setRedeemedPoints(0);
+      setHistoryByPhone({});
+      setLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoading(true);
+    refresh()
+      .catch(() => undefined) // the screens show an empty state; the next poll or action retries
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, customerPhone, refresh]);
 
+  useEffect(() => {
+    if (!role) return undefined;
+    const timer = setInterval(() => refresh().catch(() => undefined), POLL_MS);
+    return () => clearInterval(timer);
+  }, [role, refresh]);
+
+  const customerIdFor = useCallback(
+    (phone) => {
+      const match = customers.find((c) => c.phone === phone);
+      if (!match) throw new Error('Customer not found.');
+      return match.id;
+    },
+    [customers]
+  );
+
+  // Runs a change, then re-reads the data so every screen reflects what the server now holds.
+  const mutate = useCallback(
+    async (action) => {
+      const result = await action();
+      await refresh().catch(() => undefined);
+      return result;
+    },
+    [refresh]
+  );
+
+  // Staff open a customer's ledger on demand (it's a separate, paged endpoint).
+  const loadHistory = useCallback(
+    async (phone) => {
+      const entries = await apiRequestAll(`/customers/${customerIdFor(phone)}/history`);
+      setHistoryByPhone((prev) => ({ ...prev, [phone]: entries.map(toHistoryEntry) }));
+    },
+    [customerIdFor]
+  );
+
+  // ---- staff: customers and fuel ----
   const addCustomer = useCallback(
-    async ({ name, phone, vehicleNumber, vehicleModel, pin, referredByPhone }) => {
-      const referral = referredByPhone ? referredByPhone.trim() : '';
-      if (referral) {
-        if (referral === phone.trim()) {
-          throw new Error('You cannot refer yourself.');
-        }
-        const referrer = await storeGetCustomer(referral);
-        if (!referrer) {
-          throw new Error('Referral code not found.');
-        }
-      }
-
-      const created = await storeCreateCustomer({ name, phone, vehicleNumber, vehicleModel, pin });
-      if (referral) {
-        await storeAddReferralBonus(referral, created.name);
-      }
-      await refresh();
-      return created;
-    },
-    [refresh]
+    ({ name, phone, vehicleNumber, vehicleModel, pin, referredByPhone }) =>
+      mutate(async () => {
+        const created = await apiRequest('/customers', {
+          method: 'POST',
+          body: {
+            name,
+            phone,
+            ...(pin ? { pin } : {}),
+            ...(vehicleNumber || vehicleModel ? { vehicle: vehicleBody({ model: vehicleModel, number: vehicleNumber }) } : {}),
+            ...(referredByPhone ? { referralCode: referredByPhone } : {}),
+          },
+        });
+        return toCustomer(created);
+      }),
+    [mutate]
   );
 
+  // Records a fill-up (in litres) for the customer; resolves to their updated account.
   const creditPoints = useCallback(
-    async (phone, litres, by) => {
-      const updated = await storeAddPoints(phone, litres, by);
-      await refresh();
-      return updated;
-    },
-    [refresh]
+    (phone, litres) =>
+      mutate(async () => {
+        const result = await apiRequest('/fuel-entries', {
+          method: 'POST',
+          body: { customerId: customerIdFor(phone), litres },
+        });
+        return toCustomer(result.customer);
+      }),
+    [mutate, customerIdFor]
   );
 
+  // ---- redemption requests ----
   const requestRedemption = useCallback(
-    async (phone, reward) => {
-      await storeCreateRequest(phone, reward);
-      await refresh();
-    },
-    [refresh]
+    (_phone, reward) =>
+      mutate(() => apiRequest('/redemption-requests', { method: 'POST', body: { rewardId: reward.id } })),
+    [mutate]
   );
 
   const approveRequest = useCallback(
-    async (id, by) => {
-      await storeApproveRequest(id, by);
-      await refresh();
-    },
-    [refresh]
+    (id) => mutate(() => apiRequest(`/redemption-requests/${id}/approve`, { method: 'POST' })),
+    [mutate]
   );
 
   const rejectRequest = useCallback(
-    async (id, by) => {
-      await storeRejectRequest(id, by);
-      await refresh();
-    },
-    [refresh]
+    (id) => mutate(() => apiRequest(`/redemption-requests/${id}/reject`, { method: 'POST' })),
+    [mutate]
   );
 
+  // ---- fuel proofs ----
   const submitFuelClaim = useCallback(
-    async (claim) => {
-      await storeCreateClaim(claim);
-      await refresh();
-    },
-    [refresh]
+    ({ vehicleId, amountRupees, photoDataUri, location }) =>
+      mutate(() =>
+        apiRequest('/fuel-claims', {
+          method: 'POST',
+          timeoutMs: 60000, // the photo is a few hundred KB; allow for slow mobile data
+          body: {
+            vehicleId,
+            amountRupees,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            ...(location.accuracy != null ? { accuracy: location.accuracy } : {}),
+            photoDataUri,
+          },
+        })
+      ),
+    [mutate]
   );
 
   const approveFuelClaim = useCallback(
-    async (id, amountRupees, by) => {
-      await storeApproveClaim(id, amountRupees, by);
-      await refresh();
-    },
-    [refresh]
+    (id, amountRupees) =>
+      mutate(() => apiRequest(`/fuel-claims/${id}/approve`, { method: 'POST', body: { amountRupees: Number(amountRupees) } })),
+    [mutate]
   );
 
   const rejectFuelClaim = useCallback(
-    async (id, by) => {
-      await storeRejectClaim(id, by);
-      await refresh();
-    },
-    [refresh]
+    (id) => mutate(() => apiRequest(`/fuel-claims/${id}/reject`, { method: 'POST', body: {} })),
+    [mutate]
   );
 
+  // ---- the signed-in customer's own profile ----
   const updateProfileName = useCallback(
-    async (phone, name) => {
-      await storeUpdateProfileName(phone, name);
-      await refresh();
-    },
-    [refresh]
+    (_phone, name) => mutate(() => apiRequest('/me', { method: 'PATCH', body: { name } })),
+    [mutate]
   );
 
   const changePin = useCallback(
-    async (phone, currentPin, newPin) => {
-      await storeChangePin(phone, currentPin, newPin);
-      await refresh();
-    },
-    [refresh]
+    (_phone, currentPin, newPin) => mutate(() => apiRequest('/me/pin', { method: 'PATCH', body: { currentPin, newPin } })),
+    [mutate]
   );
 
+  // Resolves to the customer's updated account, so the caller can pick the vehicle that was just added.
   const addVehicle = useCallback(
-    async (phone, vehicle) => {
-      const updated = await storeAddVehicle(phone, vehicle);
-      await refresh();
-      return updated;
-    },
-    [refresh]
+    (_phone, vehicle) =>
+      mutate(async () => {
+        await apiRequest('/me/vehicles', { method: 'POST', body: vehicleBody(vehicle) });
+        return toCustomer(await apiRequest('/me'));
+      }),
+    [mutate]
   );
 
   const updateVehicle = useCallback(
-    async (phone, vehicleId, vehicle) => {
-      await storeUpdateVehicle(phone, vehicleId, vehicle);
-      await refresh();
-    },
-    [refresh]
+    (_phone, vehicleId, vehicle) =>
+      mutate(() => apiRequest(`/me/vehicles/${vehicleId}`, { method: 'PATCH', body: vehicleBody(vehicle) })),
+    [mutate]
   );
 
   const removeVehicle = useCallback(
-    async (phone, vehicleId) => {
-      await storeRemoveVehicle(phone, vehicleId);
-      await refresh();
-    },
-    [refresh]
+    (_phone, vehicleId) => mutate(() => apiRequest(`/me/vehicles/${vehicleId}`, { method: 'DELETE' })),
+    [mutate]
   );
 
+  // ---- staff accounts (admin) ----
   const createStaff = useCallback(
-    async (account) => {
-      await storeCreateStaff(account);
-      await refresh();
-    },
-    [refresh]
+    ({ name, username, password, role: staffRole }) =>
+      mutate(() =>
+        apiRequest('/staff', { method: 'POST', body: { name, username, password, role: String(staffRole).toUpperCase() } })
+      ),
+    [mutate]
   );
 
   const updateStaff = useCallback(
-    async (id, changes) => {
-      await storeUpdateStaff(id, changes);
-      await refresh();
-    },
-    [refresh]
+    (id, { name, username, password }) =>
+      mutate(() => apiRequest(`/staff/${id}`, { method: 'PATCH', body: { name, username, ...(password ? { password } : {}) } })),
+    [mutate]
   );
 
   const changeOwnPassword = useCallback(
-    async (id, currentPassword, newPassword) => {
-      await storeChangeOwnPassword(id, currentPassword, newPassword);
-      await refresh();
-    },
-    [refresh]
+    (_id, currentPassword, newPassword) =>
+      mutate(() => apiRequest('/staff/me/password', { method: 'PATCH', body: { currentPassword, newPassword } })),
+    [mutate]
   );
 
   const setStaffActive = useCallback(
-    async (id, active, actingStaffId) => {
-      await storeSetStaffActive(id, active, actingStaffId);
-      await refresh();
-    },
-    [refresh]
+    (id, active) => mutate(() => apiRequest(`/staff/${id}/active`, { method: 'PATCH', body: { active } })),
+    [mutate]
   );
 
-  const getCustomerByPhone = useCallback((phone) => customers.find((c) => c.phone === phone) || null, [customers]);
+  // Staff ledgers are loaded on demand and merged in here.
+  const customersWithHistory = useMemo(
+    () => customers.map((c) => (historyByPhone[c.phone] && !c.history.length ? { ...c, history: historyByPhone[c.phone] } : c)),
+    [customers, historyByPhone]
+  );
+
+  const getCustomerByPhone = useCallback(
+    (phone) => customersWithHistory.find((c) => c.phone === phone) || null,
+    [customersWithHistory]
+  );
 
   const pendingRequests = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
   const pendingClaims = useMemo(() => claims.filter((c) => c.status === 'pending'), [claims]);
@@ -218,12 +281,15 @@ export function SessionProvider({ children }) {
   const value = useMemo(
     () => ({
       loading,
-      customers,
+      customers: customersWithHistory,
       requests,
       pendingRequests,
       claims,
       pendingClaims,
+      staffList,
+      redeemedPoints,
       refresh,
+      loadHistory,
       addCustomer,
       creditPoints,
       requestRedemption,
@@ -237,7 +303,6 @@ export function SessionProvider({ children }) {
       addVehicle,
       updateVehicle,
       removeVehicle,
-      staffList,
       createStaff,
       updateStaff,
       changeOwnPassword,
@@ -246,12 +311,15 @@ export function SessionProvider({ children }) {
     }),
     [
       loading,
-      customers,
+      customersWithHistory,
       requests,
       pendingRequests,
       claims,
       pendingClaims,
+      staffList,
+      redeemedPoints,
       refresh,
+      loadHistory,
       addCustomer,
       creditPoints,
       requestRedemption,
@@ -265,7 +333,6 @@ export function SessionProvider({ children }) {
       addVehicle,
       updateVehicle,
       removeVehicle,
-      staffList,
       createStaff,
       updateStaff,
       changeOwnPassword,

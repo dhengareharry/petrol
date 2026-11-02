@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { REWARDS } from '../data/rewards';
 import { getTierInfo } from '../utils/tiers';
-import { REFERRAL_BONUS_POINTS } from '../storage/customerStore';
+import { REFERRAL_BONUS_POINTS } from '../rules';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 function formatDate(iso) {
@@ -11,7 +11,7 @@ function formatDate(iso) {
 }
 
 async function shareReferralCode(customer) {
-  const message = `Join Pump Rewards and start earning fuel points! Use my referral code ${customer.phone} when you sign up.`;
+  const message = `Join Oasis Fuel Rewards and start earning fuel points! Use my referral code ${customer.phone} when you sign up and we both get ${REFERRAL_BONUS_POINTS} bonus points.`;
   if (Platform.OS === 'web') {
     if (navigator.share) {
       try {
@@ -174,9 +174,9 @@ export default function HomeScreen({ customer, onUploadFuel, onViewRewards }) {
       )}
 
       <View style={[styles.card, styles.referralCard]}>
-        <Text style={styles.referralTitle}>👥 Refer a Friend, Earn {REFERRAL_BONUS_POINTS} Points</Text>
+        <Text style={styles.referralTitle}>👥 Refer a Friend, You Both Earn {REFERRAL_BONUS_POINTS} Points</Text>
         <Text style={styles.referralText}>
-          Share your referral code with friends. When they sign up using it, you get {REFERRAL_BONUS_POINTS} bonus
+          Share your referral code with friends. When they sign up using it, you both get {REFERRAL_BONUS_POINTS} bonus
           points.
         </Text>
         <View style={styles.referralCodeBox}>

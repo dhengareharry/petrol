@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import ClaimPhoto from '../components/ClaimPhoto';
 import VehicleNumberInput from '../components/VehicleNumberInput';
-import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES } from '../storage/customerStore';
+import { FUEL_RATE_PER_LITRE, MIN_FUEL_AMOUNT_RUPEES } from '../rules';
 import { VEHICLE_FORMAT_ERROR, vehicleLabel } from '../utils/vehicles';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 

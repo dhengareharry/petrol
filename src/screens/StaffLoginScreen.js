@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Logo from '../components/Logo';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 export default function StaffLoginScreen({ onLogin, onBack }) {
@@ -29,7 +30,7 @@ export default function StaffLoginScreen({ onLogin, onBack }) {
       </Pressable>
 
       <View style={styles.content}>
-        <Text style={styles.icon}>🛠️</Text>
+        <Logo size={88} style={styles.icon} />
         <Text style={styles.title}>Staff Login</Text>
         <Text style={styles.subtitle}>Cashiers and admins sign in here</Text>
 
@@ -56,7 +57,6 @@ export default function StaffLoginScreen({ onLogin, onBack }) {
           <Text style={styles.submitButtonText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
         </Pressable>
 
-        <Text style={styles.hint}>Demo: admin / admin123 · cashier / cashier123</Text>
       </View>
     </KeyboardAvoidingView>
     </SafeAreaView>
@@ -88,8 +88,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   icon: {
-    fontSize: 40,
-    textAlign: 'center',
+    alignSelf: 'center',
     marginBottom: SPACING.sm,
   },
   title: {
