@@ -1,0 +1,624 @@
+import { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { checkRegistration, resetCustomerPin } from '../api/auth';
+import { sendOtp } from '../api/otp';
+import GradientBox from '../components/GradientBox';
+import Icon from '../components/Icon';
+import Logo from '../components/Logo';
+import VehicleNumberInput from '../components/VehicleNumberInput';
+import { useRules } from '../context/RulesContext';
+import { cleanPhoneInput, isValidMobile, mobileHint } from '../utils/phone';
+import useLayout from '../utils/useLayout';
+import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
+
+const maskPhone = (phone) => `+91 ${phone.slice(0, 2)}••••${phone.slice(-4)}`;
+const looksLikePhone = (value) => /^\d+$/.test(value);
+
+/** A bordered input with a leading icon. */
+function Field({ icon, style, ...props }) {
+  return (
+    <View style={[styles.field, style]}>
+      <Icon name={icon} size={18} color={COLORS.textMuted} />
+      <TextInput
+        style={styles.fieldInput}
+        placeholderTextColor={COLORS.textMuted}
+        underlineColorAndroid="transparent"
+        {...props}
+      />
+    </View>
+  );
+}
+
+/**
+ * The one entry screen. Sign-in is a single form: a 10-digit phone number signs a customer in (with their PIN), anything
+ * else is a staff username (with their password), and the app opens the matching panel. Customers can also sign up here.
+ *
+ * SMS verification is a server switch (`otpEnabled` in the program rules). While it is off, sign-up is a single step and a
+ * customer who forgot their PIN is told to ask the cashier, who resets it. When it is on, signing up and resetting a PIN take
+ * a second step: an SMS code (sent by the backend through Fast2SMS) proves the phone number before anything changes.
+ */
+export default function LoginScreen({ onLogin, onRegister }) {
+  const { referralBonusPoints, otpEnabled } = useRules();
+  const { height, isTablet } = useLayout();
+  const compact = height < 560; // a phone held sideways: shrink the header so the form stays reachable
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
+  const [step, setStep] = useState('details'); // register / reset only: 'details' | 'otp'
+  const [notice, setNotice] = useState('');
+  const [phone, setPhone] = useState('');
+  const [pin, setPin] = useState('');
+  const [name, setName] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [code, setCode] = useState('');
+  const [devOtp, setDevOtp] = useState(null);
+  const [resendIn, setResendIn] = useState(0);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  function resetFields() {
+    setError('');
+    setNotice('');
+    setStep('details');
+    setPhone('');
+    setPin('');
+    setName('');
+    setVehicleModel('');
+    setVehicleNumber('');
+    setReferralCode('');
+    setCode('');
+    setDevOtp(null);
+    setResendIn(0);
+  }
+
+  function goTo(nextMode) {
+    resetFields();
+    setMode(nextMode);
+  }
+
+  const registration = () => ({
+    name: name.trim(),
+    phone: phone.trim(),
+    vehicleModel: vehicleModel.trim(),
+    vehicleNumber: vehicleNumber.trim(),
+    pin: pin.trim(),
+    referredByPhone: referralCode.trim(),
+  });
+
+  async function handleLogin() {
+    setError('');
+    setNotice('');
+    const who = phone.trim();
+    if (!who) {
+      setError('Enter your phone number (customers) or username (staff).');
+      return;
+    }
+    const isCustomer = looksLikePhone(who);
+    // A staff username can never be all digits, so digits alone must be a complete 10-digit phone number.
+    if (isCustomer && who.length !== 10) {
+      setError('Enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!pin) {
+      setError(isCustomer ? 'Enter your PIN.' : 'Enter your password.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onLogin(who, isCustomer ? pin.trim() : pin);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Validates the sign-up / reset details. Returns an error message, or '' when everything is fine.
+  function validateDetails(details) {
+    if (!resetting && !details.name) return 'Enter your full name.';
+    if (!isValidMobile(details.phone)) return 'Enter a valid 10-digit mobile number (it starts with 6, 7, 8 or 9).';
+    if (!/^\d{4}$/.test(details.pin)) return resetting ? 'Choose a new 4-digit PIN.' : 'Choose a 4-digit PIN.';
+    if (details.referredByPhone && !/^\d{10}$/.test(details.referredByPhone)) {
+      return "A referral code is your friend's 10-digit phone number.";
+    }
+    return '';
+  }
+
+  // Create Account (SMS off), or the first step of sign-up / PIN reset (SMS on: check the details, then text a code).
+  async function submitDetails() {
+    setError('');
+    const details = registration();
+    const problem = validateDetails(details);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Catch problems (number already registered, bad vehicle, bad referral code) before anything is sent or created.
+      if (!resetting) await checkRegistration(details);
+      if (!otpEnabled) {
+        await onRegister(details);
+        return;
+      }
+      const result = await sendOtp(details.phone, resetting ? 'RESET_PIN' : 'REGISTER');
+      setDevOtp(result.devOtp ?? null);
+      setResendIn(result.resendInSeconds ?? 30);
+      setCode('');
+      setStep('otp');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function confirmCode() {
+    setError('');
+    if (!/^\d{6}$/.test(code.trim())) {
+      setError('Enter the 6-digit code from the SMS.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (resetting) {
+        await resetCustomerPin(phone.trim(), code.trim(), pin.trim());
+        resetFields();
+        setMode('login');
+        setNotice('Your PIN was changed. Log in with your new PIN.');
+        return;
+      }
+      // The server checks the code and creates the account in one step, then we are signed in.
+      await onRegister({ ...registration(), otp: code.trim() });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function editDetails() {
+    setError('');
+    setCode('');
+    setDevOtp(null);
+    setStep('details');
+  }
+
+  const registering = mode === 'register';
+  const resetting = mode === 'reset';
+  const verifying = otpEnabled && (registering || resetting) && step === 'otp';
+  const staffHelpOnly = resetting && !otpEnabled; // no SMS, so a forgotten PIN is reset by the cashier
+  const phoneHint = registering || resetting ? mobileHint(phone) : '';
+
+  let title = 'Welcome back';
+  let subtitle = 'Log in with your phone number (customers) or username (staff)';
+  if (staffHelpOnly) {
+    title = 'Forgot your PIN?';
+    subtitle = 'Our pump staff can reset it for you';
+  } else if (resetting) {
+    title = verifying ? 'Verify your phone' : 'Reset PIN';
+    subtitle = verifying
+      ? `Enter the 6-digit code we sent to ${maskPhone(phone.trim())}`
+      : 'Enter your phone number and choose a new PIN';
+  } else if (registering) {
+    title = verifying ? 'Verify your phone' : 'Create account';
+    subtitle = verifying
+      ? `Enter the 6-digit code we sent to ${maskPhone(phone.trim())}`
+      : 'Sign up to start earning reward points';
+  }
+
+  const submitLabel = submitting
+    ? 'Please wait…'
+    : registering
+      ? otpEnabled
+        ? 'Send OTP'
+        : 'Create Account'
+      : resetting
+        ? 'Send OTP'
+        : 'Login';
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView style={styles.flexFill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <GradientBox colors={[COLORS.primaryDark, COLORS.primary, '#2D56BD']} style={styles.hero}>
+            <View style={[styles.blob, styles.blobOrange]} />
+            <View style={[styles.blob, styles.blobGreen]} />
+            {mode !== 'login' && (
+              <Pressable style={styles.backButton} onPress={verifying ? editDetails : () => goTo('login')} hitSlop={8}>
+                <Text style={styles.backText}>{verifying ? '‹ Edit details' : '‹ Back to login'}</Text>
+              </Pressable>
+            )}
+            <Logo size={compact ? 56 : mode === 'login' ? 112 : 84} style={styles.logo} />
+            <Text style={styles.brand}>Oasis Fuel Rewards</Text>
+            {!compact && <Text style={styles.tagline}>Fueling your journey, rewarding every litre</Text>}
+          </GradientBox>
+
+          <View style={[styles.card, isTablet && styles.cardTablet]}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+
+            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            {staffHelpOnly ? (
+              <>
+                <View style={styles.infoBox}>
+                  <Icon name="info" size={20} color={COLORS.primary} />
+                  <Text style={styles.infoText}>
+                    For your security we don't reset PINs automatically. Visit the pump with your registered phone number and
+                    the cashier will set a new PIN for you in a few seconds. You can change it any time under Profile → Change PIN.
+                  </Text>
+                </View>
+                <Pressable style={styles.submitButton} onPress={() => goTo('login')}>
+                  <Text style={styles.submitButtonText}>Back to login</Text>
+                </Pressable>
+              </>
+            ) : verifying ? (
+              <>
+                <TextInput
+                  style={[styles.input, styles.codeInput]}
+                  placeholder="------"
+                  placeholderTextColor={COLORS.borderInput}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={code}
+                  onChangeText={(text) => setCode(text.replace(/\D/g, ''))}
+                  autoComplete="sms-otp"
+                  textContentType="oneTimeCode"
+                  autoFocus
+                />
+
+                {__DEV__ && devOtp ? (
+                  <Text style={styles.devHint}>Dev mode: the server is not sending real SMS. Your code is {devOtp}.</Text>
+                ) : null}
+
+                <Pressable
+                  style={[styles.submitButton, (submitting || code.length !== 6) && styles.disabled]}
+                  disabled={submitting || code.length !== 6}
+                  onPress={confirmCode}
+                >
+                  <Text style={styles.submitButtonText}>
+                    {submitting ? 'Please wait…' : resetting ? 'Verify & Reset PIN' : 'Verify & Create Account'}
+                  </Text>
+                </Pressable>
+
+                <Pressable style={styles.toggleLink} disabled={resendIn > 0 || submitting} onPress={submitDetails}>
+                  <Text style={[styles.toggleLinkText, (resendIn > 0 || submitting) && styles.linkDisabled]}>
+                    {resendIn > 0 ? `Resend code in ${resendIn}s` : "Didn't get it? Resend code"}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                {registering && (
+                  <Field icon="user" placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
+                )}
+
+                <Field
+                  icon={mode === 'login' ? 'user' : 'phone'}
+                  placeholder={mode === 'login' ? 'Phone number or username' : '10-digit mobile number'}
+                  keyboardType={mode === 'login' ? 'default' : 'number-pad'}
+                  maxLength={mode === 'login' ? 64 : 10}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={phone}
+                  onChangeText={(text) => setPhone(mode === 'login' ? text : cleanPhoneInput(text))}
+                />
+                {phoneHint ? <Text style={styles.fieldHint}>{phoneHint}</Text> : null}
+                {(registering || resetting) && isValidMobile(phone) ? (
+                  <View style={styles.fieldOkRow}>
+                    <Icon name="check" size={13} color={COLORS.success} strokeWidth={2.6} />
+                    <Text style={styles.fieldOk}>Valid mobile number</Text>
+                  </View>
+                ) : null}
+
+                {registering && (
+                  <>
+                    <Field
+                      icon="car"
+                      placeholder="Vehicle model (optional, e.g. Land Cruiser)"
+                      value={vehicleModel}
+                      onChangeText={setVehicleModel}
+                    />
+                    <VehicleNumberInput
+                      style={styles.input}
+                      placeholder="Vehicle number (optional)"
+                      value={vehicleNumber}
+                      onChangeText={setVehicleNumber}
+                    />
+                  </>
+                )}
+
+                <Field
+                  icon="lock"
+                  placeholder={registering ? 'Choose a 4-digit PIN' : resetting ? 'New 4-digit PIN' : 'PIN or password'}
+                  keyboardType={mode === 'login' ? 'default' : 'number-pad'}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  maxLength={mode === 'login' ? 100 : 4}
+                  value={pin}
+                  onChangeText={(text) => setPin(mode === 'login' ? text : text.replace(/\D/g, ''))}
+                />
+
+                {registering && (
+                  <>
+                    <Field
+                      icon="gift"
+                      placeholder="Referral code (optional)"
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      value={referralCode}
+                      onChangeText={(text) => setReferralCode(cleanPhoneInput(text))}
+                    />
+                    <Text style={styles.referralHint}>
+                      Got a friend's referral code? Enter their phone number here, and you'll both get {referralBonusPoints} bonus points.
+                    </Text>
+                  </>
+                )}
+
+                <Pressable
+                  style={[styles.submitButton, submitting && styles.disabled]}
+                  disabled={submitting}
+                  onPress={registering || resetting ? submitDetails : handleLogin}
+                >
+                  <Text style={styles.submitButtonText}>{submitLabel}</Text>
+                </Pressable>
+
+                {(registering || resetting) && otpEnabled && (
+                  <Text style={styles.hint}>We'll text a 6-digit code to verify your phone number.</Text>
+                )}
+
+                {mode === 'login' && (
+                  <Pressable style={styles.toggleLink} onPress={() => goTo('reset')}>
+                    <Text style={styles.toggleLinkText}>Forgot PIN?</Text>
+                  </Pressable>
+                )}
+
+                <Pressable style={styles.toggleLink} onPress={() => goTo(mode === 'login' ? 'register' : 'login')}>
+                  <Text style={styles.toggleLinkText}>
+                    {registering ? 'Already have an account? Login' : resetting ? 'Back to login' : 'New customer? Create an account'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.primaryDark,
+  },
+  flexFill: {
+    flex: 1,
+  },
+  scroll: {
+    flexGrow: 1,
+    backgroundColor: COLORS.background,
+  },
+  hero: {
+    alignItems: 'center',
+    paddingTop: SPACING.xxl,
+    paddingBottom: 56,
+    paddingHorizontal: SPACING.xl,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+  },
+  blobOrange: {
+    width: 180,
+    height: 180,
+    top: -70,
+    left: -60,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  blobGreen: {
+    width: 150,
+    height: 150,
+    bottom: -60,
+    right: -40,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  backText: {
+    color: COLORS.textOnPrimary,
+    fontSize: FONT.body,
+    fontWeight: '700',
+  },
+  logo: {
+    borderRadius: 24,
+    marginBottom: SPACING.md,
+  },
+  brand: {
+    color: COLORS.textOnPrimary,
+    fontSize: FONT.heading,
+    fontWeight: '800',
+  },
+  tagline: {
+    color: COLORS.textOnPrimaryMuted,
+    fontSize: 13,
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    marginTop: -32,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xxl,
+    ...SHADOW.raised,
+  },
+  cardTablet: {
+    maxWidth: 480,
+    padding: SPACING.xxl,
+  },
+  title: {
+    fontSize: FONT.heading,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xl,
+  },
+  error: {
+    color: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+  },
+  notice: {
+    color: COLORS.success,
+    backgroundColor: COLORS.successSoft,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderInput,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  fieldInput: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    fontSize: FONT.label,
+    color: COLORS.textPrimary,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  fieldHint: {
+    fontSize: 12,
+    color: COLORS.danger,
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  fieldOkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  fieldOk: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderInput,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONT.label,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  codeInput: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 10,
+    textAlign: 'center',
+  },
+  devHint: {
+    fontSize: 12,
+    color: COLORS.accentText,
+    backgroundColor: COLORS.accentSoft,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: COLORS.textPrimary,
+  },
+  referralHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  submitButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.lg,
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  submitButtonText: {
+    color: COLORS.textOnPrimary,
+    fontWeight: '800',
+    fontSize: FONT.label,
+  },
+  disabled: {
+    opacity: 0.6,
+  },
+  toggleLink: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  toggleLinkText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  linkDisabled: {
+    color: COLORS.textMuted,
+  },
+  hint: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.lg,
+  },
+});
