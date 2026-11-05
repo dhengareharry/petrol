@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import {
-  VEHICLE_FORMAT_ERROR,
-  VEHICLE_FORMAT_HINT,
-  formatVehicleNumber,
-  sanitizeVehicleInput,
-} from '../utils/vehicles';
+import { formatVehicleNumber, sanitizeVehicleInput } from '../utils/vehicles';
 import Icon from './Icon';
+import { useI18n } from '../i18n';
 import { COLORS } from '../theme';
 
 export default function VehicleNumberInput({ value, onChangeText, style, placeholder = 'Vehicle number', required }) {
   const [touched, setTouched] = useState(false);
+  const { t } = useI18n();
   const formatted = formatVehicleNumber(value);
   const showError = touched && value.trim() !== '' && !formatted;
 
@@ -28,14 +25,14 @@ export default function VehicleNumberInput({ value, onChangeText, style, placeho
         maxLength={14}
       />
       {showError ? (
-        <Text style={styles.error}>{VEHICLE_FORMAT_ERROR}</Text>
+        <Text style={styles.error}>{t('vehicle.error')}</Text>
       ) : formatted ? (
         <View style={styles.validRow}>
           <Icon name="check" size={13} color={COLORS.success} strokeWidth={2.6} />
-          <Text style={styles.valid}>Valid format</Text>
+          <Text style={styles.valid}>{t('vehicle.valid')}</Text>
         </View>
       ) : (
-        <Text style={styles.hint}>Format: {VEHICLE_FORMAT_HINT}</Text>
+        <Text style={styles.hint}>{t('vehicle.format')}</Text>
       )}
     </View>
   );

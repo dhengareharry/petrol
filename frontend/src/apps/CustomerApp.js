@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppFrame from '../components/AppFrame';
+import { useI18n } from '../i18n';
 
 import HomeScreen from '../screens/HomeScreen';
 import CatalogScreen from '../screens/CatalogScreen';
@@ -12,14 +13,15 @@ import { useSession } from '../context/SessionContext';
 import { COLORS, SPACING } from '../theme';
 
 const TABS = [
-  { key: 'home', label: 'Home', icon: 'home' },
-  { key: 'catalog', label: 'Rewards', icon: 'gift' },
-  { key: 'redemptions', label: 'History', icon: 'history' },
-  { key: 'profile', label: 'Profile', icon: 'user' },
+  { key: 'home', labelKey: 'tab.home', icon: 'home' },
+  { key: 'catalog', labelKey: 'tab.rewards', icon: 'gift' },
+  { key: 'redemptions', labelKey: 'tab.history', icon: 'history' },
+  { key: 'profile', labelKey: 'tab.profile', icon: 'user' },
 ];
 
 export default function CustomerApp() {
   const [activeTab, setActiveTab] = useState('home');
+  const { t } = useI18n();
   const { customerPhone, logout } = useAuth();
   const {
     getCustomerByPhone,
@@ -40,14 +42,14 @@ export default function CustomerApp() {
   if (!customer) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>{loading ? 'Loading your account…' : "Couldn't load your account."}</Text>
+        <Text style={styles.loadingText}>{loading ? t('app.loadingAccount') : t('app.loadAccountFailed')}</Text>
         {!loading && (
           <>
             <Pressable onPress={() => refresh().catch(() => undefined)}>
-              <Text style={styles.retryLink}>Try again</Text>
+              <Text style={styles.retryLink}>{t('common.tryAgain')}</Text>
             </Pressable>
             <Pressable onPress={logout}>
-              <Text style={styles.logoutLink}>Logout</Text>
+              <Text style={styles.logoutLink}>{t('common.logout')}</Text>
             </Pressable>
           </>
         )}
@@ -60,11 +62,11 @@ export default function CustomerApp() {
   return (
     <AppFrame
       header={{
-        eyebrow: 'Welcome back',
+        eyebrow: t('app.welcomeBack'),
         title: customer.name,
-        actions: [{ icon: 'logout', label: 'Logout', onPress: logout }],
+        actions: [{ icon: 'logout', label: t('common.logout'), onPress: logout }],
       }}
-      tabs={TABS}
+      tabs={TABS.map((tab) => ({ ...tab, label: t(tab.labelKey) }))}
       activeKey={activeTab}
       onChangeTab={setActiveTab}
     >

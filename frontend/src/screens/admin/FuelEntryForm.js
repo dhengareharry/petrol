@@ -105,7 +105,7 @@ export default function FuelEntryForm({ customer, onCreditPoints }) {
   return (
     <View>
       <Text style={styles.helperText}>
-        Rate: ₹{FUEL_RATE_PER_LITRE}/ltr · Minimum ₹{MIN_FUEL_AMOUNT_RUPEES} per entry to qualify for points. Every entry needs the vehicle, a dashboard photo and the location.
+        Rate: ₹{FUEL_RATE_PER_LITRE}/ltr · Minimum ₹{MIN_FUEL_AMOUNT_RUPEES} per entry to qualify for points. Every entry needs the vehicle and a camera photo of the dashboard, which is stamped with the date, time and GPS location.
       </Text>
 
       <Text style={styles.fieldLabel}>Vehicle fuelled *</Text>

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { apiRequest } from '../api/client';
+import { useI18n } from '../i18n';
 import { COLORS, RADIUS } from '../theme';
 
 export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
   const [uri, setUri] = useState(null);
   const [missing, setMissing] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +31,7 @@ export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
 
   return (
     <View style={[styles.image, styles.placeholder, style]}>
-      <Text style={styles.placeholderText}>{missing ? 'No photo' : '…'}</Text>
+      <Text style={styles.placeholderText}>{missing ? t('common.noPhoto') : '…'}</Text>
     </View>
   );
 }

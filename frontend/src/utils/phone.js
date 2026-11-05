@@ -9,10 +9,9 @@ export function cleanPhoneInput(value) {
   return digits.slice(0, 10);
 }
 
-/** A short hint for a number that is not valid yet, or '' when there is nothing to say (empty, or valid). */
-export function mobileHint(value) {
+/** A short hint for a number that is not valid yet, or '' when there is nothing to say (empty, or valid). `t` translates it. */
+export function mobileHint(value, t) {
   if (!value || isValidMobile(value)) return '';
-  if (!/^[6-9]/.test(value)) return 'A mobile number starts with 6, 7, 8 or 9.';
-  const missing = 10 - value.length;
-  return `Enter all 10 digits (${missing} more).`;
+  if (!/^[6-9]/.test(value)) return t('phone.hintStart');
+  return t('phone.hintMore', { n: 10 - value.length });
 }

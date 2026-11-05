@@ -5,9 +5,11 @@ import { checkRegistration, resetCustomerPin } from '../api/auth';
 import { sendOtp } from '../api/otp';
 import GradientBox from '../components/GradientBox';
 import Icon from '../components/Icon';
+import LanguageSwitch from '../components/LanguageSwitch';
 import Logo from '../components/Logo';
 import VehicleNumberInput from '../components/VehicleNumberInput';
 import { useRules } from '../context/RulesContext';
+import { useI18n } from '../i18n';
 import { cleanPhoneInput, isValidMobile, mobileHint } from '../utils/phone';
 import useLayout from '../utils/useLayout';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
@@ -41,6 +43,7 @@ function Field({ icon, style, ...props }) {
 export default function LoginScreen({ onLogin, onRegister }) {
   const { referralBonusPoints, otpEnabled } = useRules();
   const { height, isTablet } = useLayout();
+  const { t, errorText } = useI18n();
   const compact = height < 560; // a phone held sideways: shrink the header so the form stays reachable
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
   const [step, setStep] = useState('details'); // register / reset only: 'details' | 'otp'
@@ -97,24 +100,24 @@ export default function LoginScreen({ onLogin, onRegister }) {
     setNotice('');
     const who = phone.trim();
     if (!who) {
-      setError('Enter your phone number (customers) or username (staff).');
+      setError(t('login.enterWho'));
       return;
     }
     const isCustomer = looksLikePhone(who);
     // A staff username can never be all digits, so digits alone must be a complete 10-digit phone number.
     if (isCustomer && who.length !== 10) {
-      setError('Enter a valid 10-digit mobile number.');
+      setError(t('phone.invalid'));
       return;
     }
     if (!pin) {
-      setError(isCustomer ? 'Enter your PIN.' : 'Enter your password.');
+      setError(isCustomer ? t('login.enterPin') : t('login.enterPassword'));
       return;
     }
     setSubmitting(true);
     try {
       await onLogin(who, isCustomer ? pin.trim() : pin);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setSubmitting(false);
     }
@@ -122,11 +125,11 @@ export default function LoginScreen({ onLogin, onRegister }) {
 
   // Validates the sign-up / reset details. Returns an error message, or '' when everything is fine.
   function validateDetails(details) {
-    if (!resetting && !details.name) return 'Enter your full name.';
-    if (!isValidMobile(details.phone)) return 'Enter a valid 10-digit mobile number (it starts with 6, 7, 8 or 9).';
-    if (!/^\d{4}$/.test(details.pin)) return resetting ? 'Choose a new 4-digit PIN.' : 'Choose a 4-digit PIN.';
+    if (!resetting && !details.name) return t('login.enterName');
+    if (!isValidMobile(details.phone)) return t('phone.invalidStart');
+    if (!/^\d{4}$/.test(details.pin)) return resetting ? t('login.chooseNewPin') : t('login.choosePinError');
     if (details.referredByPhone && !/^\d{10}$/.test(details.referredByPhone)) {
-      return "A referral code is your friend's 10-digit phone number.";
+      return t('login.referralInvalid');
     }
     return '';
   }
@@ -154,7 +157,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
       setCode('');
       setStep('otp');
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +166,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
   async function confirmCode() {
     setError('');
     if (!/^\d{6}$/.test(code.trim())) {
-      setError('Enter the 6-digit code from the SMS.');
+      setError(t('login.enterCode'));
       return;
     }
     setSubmitting(true);
@@ -172,13 +175,13 @@ export default function LoginScreen({ onLogin, onRegister }) {
         await resetCustomerPin(phone.trim(), code.trim(), pin.trim());
         resetFields();
         setMode('login');
-        setNotice('Your PIN was changed. Log in with your new PIN.');
+        setNotice(t('login.pinChangedNotice'));
         return;
       }
       // The server checks the code and creates the account in one step, then we are signed in.
       await onRegister({ ...registration(), otp: code.trim() });
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setSubmitting(false);
     }
@@ -195,34 +198,30 @@ export default function LoginScreen({ onLogin, onRegister }) {
   const resetting = mode === 'reset';
   const verifying = otpEnabled && (registering || resetting) && step === 'otp';
   const staffHelpOnly = resetting && !otpEnabled; // no SMS, so a forgotten PIN is reset by the cashier
-  const phoneHint = registering || resetting ? mobileHint(phone) : '';
+  const phoneHint = registering || resetting ? mobileHint(phone, t) : '';
 
-  let title = 'Welcome back';
-  let subtitle = 'Log in with your phone number (customers) or username (staff)';
+  let title = t('login.welcome');
+  let subtitle = t('login.welcomeSub');
   if (staffHelpOnly) {
-    title = 'Forgot your PIN?';
-    subtitle = 'Our pump staff can reset it for you';
+    title = t('login.forgotTitle');
+    subtitle = t('login.forgotSub');
   } else if (resetting) {
-    title = verifying ? 'Verify your phone' : 'Reset PIN';
-    subtitle = verifying
-      ? `Enter the 6-digit code we sent to ${maskPhone(phone.trim())}`
-      : 'Enter your phone number and choose a new PIN';
+    title = verifying ? t('login.verifyTitle') : t('login.resetTitle');
+    subtitle = verifying ? t('login.verifySub', { phone: maskPhone(phone.trim()) }) : t('login.resetSub');
   } else if (registering) {
-    title = verifying ? 'Verify your phone' : 'Create account';
-    subtitle = verifying
-      ? `Enter the 6-digit code we sent to ${maskPhone(phone.trim())}`
-      : 'Sign up to start earning reward points';
+    title = verifying ? t('login.verifyTitle') : t('login.createTitle');
+    subtitle = verifying ? t('login.verifySub', { phone: maskPhone(phone.trim()) }) : t('login.createSub');
   }
 
   const submitLabel = submitting
-    ? 'Please wait…'
+    ? t('login.wait')
     : registering
       ? otpEnabled
-        ? 'Send OTP'
-        : 'Create Account'
+        ? t('login.sendOtp')
+        : t('login.createButton')
       : resetting
-        ? 'Send OTP'
-        : 'Login';
+        ? t('login.sendOtp')
+        : t('login.loginButton');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -231,14 +230,15 @@ export default function LoginScreen({ onLogin, onRegister }) {
           <GradientBox colors={[COLORS.primaryDark, COLORS.primary, '#2D56BD']} style={styles.hero}>
             <View style={[styles.blob, styles.blobOrange]} />
             <View style={[styles.blob, styles.blobGreen]} />
+            <LanguageSwitch style={styles.languageSwitch} />
             {mode !== 'login' && (
               <Pressable style={styles.backButton} onPress={verifying ? editDetails : () => goTo('login')} hitSlop={8}>
-                <Text style={styles.backText}>{verifying ? '‹ Edit details' : '‹ Back to login'}</Text>
+                <Text style={styles.backText}>{verifying ? t('login.editArrow') : t('login.backArrow')}</Text>
               </Pressable>
             )}
             <Logo size={compact ? 56 : mode === 'login' ? 112 : 84} style={styles.logo} />
             <Text style={styles.brand}>Oasis Fuel Rewards</Text>
-            {!compact && <Text style={styles.tagline}>Fueling your journey, rewarding every litre</Text>}
+            {!compact && <Text style={styles.tagline}>{t('login.tagline')}</Text>}
           </GradientBox>
 
           <View style={[styles.card, isTablet && styles.cardTablet]}>
@@ -252,13 +252,10 @@ export default function LoginScreen({ onLogin, onRegister }) {
               <>
                 <View style={styles.infoBox}>
                   <Icon name="info" size={20} color={COLORS.primary} />
-                  <Text style={styles.infoText}>
-                    For your security we don't reset PINs automatically. Visit the pump with your registered phone number and
-                    the cashier will set a new PIN for you in a few seconds. You can change it any time under Profile → Change PIN.
-                  </Text>
+                  <Text style={styles.infoText}>{t('login.forgotInfo')}</Text>
                 </View>
                 <Pressable style={styles.submitButton} onPress={() => goTo('login')}>
-                  <Text style={styles.submitButtonText}>Back to login</Text>
+                  <Text style={styles.submitButtonText}>{t('login.backToLogin')}</Text>
                 </Pressable>
               </>
             ) : verifying ? (
@@ -286,25 +283,25 @@ export default function LoginScreen({ onLogin, onRegister }) {
                   onPress={confirmCode}
                 >
                   <Text style={styles.submitButtonText}>
-                    {submitting ? 'Please wait…' : resetting ? 'Verify & Reset PIN' : 'Verify & Create Account'}
+                    {submitting ? t('login.wait') : resetting ? t('login.verifyReset') : t('login.verifyCreate')}
                   </Text>
                 </Pressable>
 
                 <Pressable style={styles.toggleLink} disabled={resendIn > 0 || submitting} onPress={submitDetails}>
                   <Text style={[styles.toggleLinkText, (resendIn > 0 || submitting) && styles.linkDisabled]}>
-                    {resendIn > 0 ? `Resend code in ${resendIn}s` : "Didn't get it? Resend code"}
+                    {resendIn > 0 ? t('login.resendIn', { n: resendIn }) : t('login.resend')}
                   </Text>
                 </Pressable>
               </>
             ) : (
               <>
                 {registering && (
-                  <Field icon="user" placeholder="Full name" value={name} onChangeText={setName} autoCapitalize="words" />
+                  <Field icon="user" placeholder={t('login.fullName')} value={name} onChangeText={setName} autoCapitalize="words" />
                 )}
 
                 <Field
                   icon={mode === 'login' ? 'user' : 'phone'}
-                  placeholder={mode === 'login' ? 'Phone number or username' : '10-digit mobile number'}
+                  placeholder={mode === 'login' ? t('login.phoneOrUser') : t('login.mobile')}
                   keyboardType={mode === 'login' ? 'default' : 'number-pad'}
                   maxLength={mode === 'login' ? 64 : 10}
                   autoCapitalize="none"
@@ -316,7 +313,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
                 {(registering || resetting) && isValidMobile(phone) ? (
                   <View style={styles.fieldOkRow}>
                     <Icon name="check" size={13} color={COLORS.success} strokeWidth={2.6} />
-                    <Text style={styles.fieldOk}>Valid mobile number</Text>
+                    <Text style={styles.fieldOk}>{t('login.validMobile')}</Text>
                   </View>
                 ) : null}
 
@@ -324,13 +321,13 @@ export default function LoginScreen({ onLogin, onRegister }) {
                   <>
                     <Field
                       icon="car"
-                      placeholder="Vehicle model (optional, e.g. Land Cruiser)"
+                      placeholder={t('login.vehicleModel')}
                       value={vehicleModel}
                       onChangeText={setVehicleModel}
                     />
                     <VehicleNumberInput
                       style={styles.input}
-                      placeholder="Vehicle number (optional)"
+                      placeholder={t('login.vehicleNumber')}
                       value={vehicleNumber}
                       onChangeText={setVehicleNumber}
                     />
@@ -339,7 +336,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
 
                 <Field
                   icon="lock"
-                  placeholder={registering ? 'Choose a 4-digit PIN' : resetting ? 'New 4-digit PIN' : 'PIN or password'}
+                  placeholder={registering ? t('login.choosePin') : resetting ? t('login.newPin') : t('login.pinOrPassword')}
                   keyboardType={mode === 'login' ? 'default' : 'number-pad'}
                   secureTextEntry
                   autoCapitalize="none"
@@ -352,15 +349,13 @@ export default function LoginScreen({ onLogin, onRegister }) {
                   <>
                     <Field
                       icon="gift"
-                      placeholder="Referral code (optional)"
+                      placeholder={t('login.referral')}
                       keyboardType="number-pad"
                       maxLength={10}
                       value={referralCode}
                       onChangeText={(text) => setReferralCode(cleanPhoneInput(text))}
                     />
-                    <Text style={styles.referralHint}>
-                      Got a friend's referral code? Enter their phone number here, and you'll both get {referralBonusPoints} bonus points.
-                    </Text>
+                    <Text style={styles.referralHint}>{t('login.referralHint', { n: referralBonusPoints })}</Text>
                   </>
                 )}
 
@@ -373,18 +368,18 @@ export default function LoginScreen({ onLogin, onRegister }) {
                 </Pressable>
 
                 {(registering || resetting) && otpEnabled && (
-                  <Text style={styles.hint}>We'll text a 6-digit code to verify your phone number.</Text>
+                  <Text style={styles.hint}>{t('login.otpHint')}</Text>
                 )}
 
                 {mode === 'login' && (
                   <Pressable style={styles.toggleLink} onPress={() => goTo('reset')}>
-                    <Text style={styles.toggleLinkText}>Forgot PIN?</Text>
+                    <Text style={styles.toggleLinkText}>{t('login.forgotLink')}</Text>
                   </Pressable>
                 )}
 
                 <Pressable style={styles.toggleLink} onPress={() => goTo(mode === 'login' ? 'register' : 'login')}>
                   <Text style={styles.toggleLinkText}>
-                    {registering ? 'Already have an account? Login' : resetting ? 'Back to login' : 'New customer? Create an account'}
+                    {registering ? t('login.haveAccount') : resetting ? t('login.backToLogin') : t('login.newCustomer')}
                   </Text>
                 </Pressable>
               </>
@@ -410,9 +405,15 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    paddingTop: SPACING.xxl,
+    paddingTop: 56,
     paddingBottom: 56,
     paddingHorizontal: SPACING.xl,
+  },
+  languageSwitch: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.md,
+    zIndex: 2,
   },
   blob: {
     position: 'absolute',

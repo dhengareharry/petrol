@@ -1,8 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useI18n } from '../i18n';
 import { COLORS, SPACING } from '../theme';
 
 /** The end of a paged list: a spinner while loading, otherwise a "Load more" button (or the error that stopped it). */
 export default function ListFooter({ loading, loadingMore, hasMore, error, onLoadMore, hasItems }) {
+  const { t } = useI18n();
   if (loading && !hasItems) {
     return (
       <View style={styles.wrap}>
@@ -22,7 +24,7 @@ export default function ListFooter({ loading, loadingMore, hasMore, error, onLoa
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {hasMore ? (
         <Pressable onPress={onLoadMore}>
-          <Text style={styles.more}>Load more</Text>
+          <Text style={styles.more}>{t('common.loadMore')}</Text>
         </Pressable>
       ) : null}
     </View>

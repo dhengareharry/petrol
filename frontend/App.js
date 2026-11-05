@@ -7,6 +7,7 @@ import AdminApp from './src/apps/AdminApp';
 import CustomerApp from './src/apps/CustomerApp';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { RulesProvider } from './src/context/RulesContext';
+import { FixedLanguage, I18nProvider, useI18n } from './src/i18n';
 import { SessionProvider, useSession } from './src/context/SessionContext';
 import Logo from './src/components/Logo';
 import { COLORS } from './src/theme';
@@ -14,18 +15,23 @@ import { COLORS } from './src/theme';
 function AppRouter() {
   const auth = useAuth();
   const session = useSession();
+  const { ready, t } = useI18n();
 
-  if (auth.loading || session.loading) {
+  if (auth.loading || session.loading || !ready) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <Logo size={120} />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={styles.loadingText}>{t('common.loading')}</Text>
       </SafeAreaView>
     );
   }
 
   if (auth.role === 'admin' || auth.role === 'cashier') {
-    return <AdminApp />;
+    return (
+      <FixedLanguage code="en">
+        <AdminApp />
+      </FixedLanguage>
+    );
   }
 
   if (auth.role === 'customer') {
@@ -39,16 +45,18 @@ function AppRouter() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <RulesProvider>
-        <AuthProvider>
-          <SessionProvider>
-            <View style={styles.root}>
-              <AppRouter />
-              <StatusBar style="light" />
-            </View>
-          </SessionProvider>
-        </AuthProvider>
-      </RulesProvider>
+      <I18nProvider>
+        <RulesProvider>
+          <AuthProvider>
+            <SessionProvider>
+              <View style={styles.root}>
+                <AppRouter />
+                <StatusBar style="light" />
+              </View>
+            </SessionProvider>
+          </AuthProvider>
+        </RulesProvider>
+      </I18nProvider>
     </SafeAreaProvider>
   );
 }

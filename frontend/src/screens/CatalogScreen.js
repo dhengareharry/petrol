@@ -4,17 +4,18 @@ import GradientBox from '../components/GradientBox';
 import Icon from '../components/Icon';
 import RewardImage from '../components/RewardImage';
 import { REWARDS } from '../data/rewards';
+import { useI18n } from '../i18n';
 import useLayout from '../utils/useLayout';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
 
-function confirmAsync(title, message) {
+function confirmAsync(title, message, buttons) {
   if (Platform.OS === 'web') {
     return Promise.resolve(window.confirm(`${title}\n\n${message}`));
   }
   return new Promise((resolve) => {
     Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Request', onPress: () => resolve(true) },
+      { text: buttons.cancel, style: 'cancel', onPress: () => resolve(false) },
+      { text: buttons.confirm, onPress: () => resolve(true) },
     ]);
   });
 }
@@ -31,12 +32,14 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
   const [requestingId, setRequestingId] = useState(null);
   const [query, setQuery] = useState('');
   const { rewardColumns } = useLayout();
+  const { t, language, rewardName, errorText } = useI18n();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return REWARDS;
-    return REWARDS.filter((item) => item.name.toLowerCase().includes(q));
-  }, [query]);
+    return REWARDS.filter((item) => [item.name, rewardName(item)].some((name) => name.toLowerCase().includes(q)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, language]);
 
   const pendingRewardIds = useMemo(() => new Set(pendingRequests.map((r) => r.rewardId)), [pendingRequests]);
   const pendingPoints = useMemo(() => pendingRequests.reduce((sum, r) => sum + r.points, 0), [pendingRequests]);
@@ -44,17 +47,18 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
 
   async function handleRequest(reward) {
     const confirmed = await confirmAsync(
-      'Request Redemption',
-      `Request "${reward.name}" for ${reward.points.toLocaleString()} points? An admin will need to approve it.`
+      t('catalog.confirmTitle'),
+      t('catalog.confirmText', { name: rewardName(reward), points: reward.points.toLocaleString() }),
+      { cancel: t('common.cancel'), confirm: t('catalog.request') }
     );
     if (!confirmed) return;
 
     setRequestingId(reward.id);
     try {
       await onRequestRedeem(reward);
-      notify('Request sent', `Your request for ${reward.name} is pending admin approval.`);
+      notify(t('catalog.sentTitle'), t('catalog.sentText', { name: rewardName(reward) }));
     } catch (err) {
-      notify('Unable to request', err.message);
+      notify(t('catalog.failTitle'), errorText(err));
     } finally {
       setRequestingId(null);
     }
@@ -75,15 +79,17 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
           </View>
         </View>
         <Text style={styles.name} numberOfLines={2}>
-          {item.name}
+          {rewardName(item)}
         </Text>
         <View style={styles.pointsBadge}>
-          <Text style={styles.pointsText}>{item.points.toLocaleString()} pts</Text>
+          <Text style={styles.pointsText}>
+            {item.points.toLocaleString()} {t('common.pts')}
+          </Text>
         </View>
         {alreadyPending ? (
           <View style={styles.pendingPill}>
             <Icon name="clock" size={12} color={COLORS.accentText} />
-            <Text style={styles.pendingText}>Awaiting approval</Text>
+            <Text style={styles.pendingText}>{t('catalog.awaiting')}</Text>
           </View>
         ) : unlocked ? (
           <Pressable
@@ -93,7 +99,7 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
           >
             <Icon name="gift" size={14} color={COLORS.textOnPrimary} />
             <Text style={styles.redeemButtonText}>
-              {requestingId === item.id ? 'Sending…' : 'Request'}
+              {requestingId === item.id ? t('catalog.sending') : t('catalog.request')}
             </Text>
           </Pressable>
         ) : (
@@ -101,7 +107,7 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${Math.max(0, progress) * 100}%` }]} />
             </View>
-            <Text style={styles.lockedText}>{remaining.toLocaleString()} pts to go</Text>
+            <Text style={styles.lockedText}>{t('catalog.toGo', { n: remaining.toLocaleString() })}</Text>
           </View>
         )}
       </View>
@@ -112,14 +118,14 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
     <View style={styles.container}>
       <GradientBox colors={[COLORS.primary, '#2D56BD']} style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Rewards catalogue</Text>
+          <Text style={styles.headerTitle}>{t('catalog.title')}</Text>
           <Text style={styles.headerBalance}>
-            {pendingPoints > 0 ? `${pendingPoints.toLocaleString()} pts pending approval` : 'Pick a reward to request'}
+            {pendingPoints > 0 ? t('catalog.pending', { n: pendingPoints.toLocaleString() }) : t('catalog.subtitle')}
           </Text>
         </View>
         <View style={styles.balanceChip}>
           <Text style={styles.balanceChipValue}>{availablePoints.toLocaleString()}</Text>
-          <Text style={styles.balanceChipLabel}>available pts</Text>
+          <Text style={styles.balanceChipLabel}>{t('catalog.available')}</Text>
         </View>
       </GradientBox>
       <View style={styles.searchWrap}>
@@ -127,7 +133,7 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
           <Icon name="search" size={18} color={COLORS.textMuted} />
           <TextInput
             style={styles.search}
-            placeholder="Search rewards"
+            placeholder={t('catalog.search')}
             placeholderTextColor={COLORS.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -142,7 +148,7 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
-        ListEmptyComponent={<Text style={styles.emptyText}>No rewards match your search.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('catalog.empty')}</Text>}
       />
     </View>
   );

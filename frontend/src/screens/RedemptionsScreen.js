@@ -2,18 +2,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import ClaimPhoto from '../components/ClaimPhoto';
 import RewardImage from '../components/RewardImage';
 import ScreenHeader from '../components/ScreenHeader';
+import { useI18n } from '../i18n';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
-
-function formatDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString();
-}
-
-const STATUS_LABEL = {
-  pending: 'Pending admin approval',
-  approved: 'Ready for pickup',
-  rejected: 'Rejected',
-};
 
 const STATUS_STYLE_KEY = {
   pending: 'statusPending',
@@ -22,6 +12,7 @@ const STATUS_STYLE_KEY = {
 };
 
 export default function RedemptionsScreen({ customer, requests, claims = [] }) {
+  const { t, rewardName, formatDate } = useI18n();
   const myRequests = requests.filter((r) => r.customerPhone === customer.phone);
 
   // Built from the customer's redemption requests (their points ledger is paged, so it isn't the full story).
@@ -42,27 +33,26 @@ export default function RedemptionsScreen({ customer, requests, claims = [] }) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="My history"
-        subtitle={`${redeemedCount} item${redeemedCount === 1 ? '' : 's'} redeemed so far`}
-      />
+      <ScreenHeader title={t('history.title')} subtitle={t('history.subtitle', { count: redeemedCount })} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {items.length === 0 ? (
-          <Text style={styles.emptyText}>No redemptions yet. Visit the Rewards tab once you have enough points.</Text>
+          <Text style={styles.emptyText}>{t('history.empty')}</Text>
         ) : (
           items.map((item) => {
             return (
               <View key={item.id} style={styles.card}>
                 <RewardImage id={item.rewardId} size={56} />
                 <View style={styles.cardText}>
-                  <Text style={styles.itemName}>{item.rewardName}</Text>
-                  <Text style={styles.itemDate}>Requested on {formatDate(item.date)}</Text>
+                  <Text style={styles.itemName}>{rewardName({ id: item.rewardId, name: item.rewardName })}</Text>
+                  <Text style={styles.itemDate}>{t('history.requestedOn', { date: formatDate(item.date) })}</Text>
                 </View>
                 <View style={styles.rightCol}>
-                  <Text style={styles.itemPoints}>-{item.points.toLocaleString()} pts</Text>
+                  <Text style={styles.itemPoints}>
+                    -{item.points.toLocaleString()} {t('common.pts')}
+                  </Text>
                   <Text style={[styles.statusBadge, styles[STATUS_STYLE_KEY[item.status]]]}>
-                    {STATUS_LABEL[item.status]}
+                    {t(`history.status.${item.status}`)}
                   </Text>
                 </View>
               </View>
@@ -70,9 +60,9 @@ export default function RedemptionsScreen({ customer, requests, claims = [] }) {
           })
         )}
 
-        <Text style={styles.sectionTitle}>Fuel fill-ups</Text>
+        <Text style={styles.sectionTitle}>{t('history.fillups')}</Text>
         {fillUps.length === 0 ? (
-          <Text style={styles.emptyText}>No fill-ups recorded yet.</Text>
+          <Text style={styles.emptyText}>{t('history.noFillups')}</Text>
         ) : (
           fillUps.map((claim) => (
             <View key={claim.id} style={styles.card}>
@@ -84,14 +74,14 @@ export default function RedemptionsScreen({ customer, requests, claims = [] }) {
                   {claim.vehicleNumber ? ` · ${claim.vehicleNumber}` : ''}
                 </Text>
                 {claim.status === 'rejected' && claim.rejectionReason ? (
-                  <Text style={styles.reason}>Reason: {claim.rejectionReason}</Text>
+                  <Text style={styles.reason}>{t('history.reason', { reason: claim.rejectionReason })}</Text>
                 ) : null}
               </View>
               <View style={styles.rightCol}>
                 <Text style={claim.status === 'approved' ? styles.earned : styles.itemPoints}>
-                  {claim.status === 'approved' ? `+${claim.pointsAwarded} pts` : 'Rejected'}
+                  {claim.status === 'approved' ? t('history.earned', { n: claim.pointsAwarded }) : t('history.status.rejected')}
                 </Text>
-                {claim.resolvedBy ? <Text style={styles.itemDate}>by {claim.resolvedBy}</Text> : null}
+                {claim.resolvedBy ? <Text style={styles.itemDate}>{t('history.by', { name: claim.resolvedBy })}</Text> : null}
               </View>
             </View>
           ))

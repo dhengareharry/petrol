@@ -15,6 +15,12 @@ async function toCompressedDataUri(uri) {
   return `data:image/jpeg;base64,${result.base64}`;
 }
 
+// "04 Nov 2026, 01:10 pm" in the phone's own format, for the preview band.
+function formatTaken(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
 /**
  * The cashier's proof of a fill-up: a photo of the vehicle's dashboard plus the GPS position where it was taken.
  * `value` is { photoDataUri, location } (location is null until it has been read); `onChange` receives the new value.
@@ -55,7 +61,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
       } catch {
         setError('Could not read the location. Check that location services are on, then tap "Retry location".');
       }
-      onChange({ photoDataUri, location });
+      onChange({ photoDataUri, location, takenAt: new Date().toISOString() });
     } catch {
       setError('Something went wrong while taking the photo. Please try again.');
     } finally {
@@ -81,7 +87,18 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
   return (
     <View>
       {hasPhoto ? (
-        <Image source={{ uri: value.photoDataUri }} style={styles.preview} resizeMode="cover" />
+        <View style={styles.preview}>
+          <Image source={{ uri: value.photoDataUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {/* What the server will print on the photo when the entry is added (it uses its own clock for the time). */}
+          <View style={styles.stampBand} pointerEvents="none">
+            <Text style={styles.stampText}>{formatTaken(value.takenAt)}</Text>
+            <Text style={styles.stampText}>
+              {value.location
+                ? `LAT ${value.location.latitude.toFixed(5)}  LON ${value.location.longitude.toFixed(5)}`
+                : 'LOCATION MISSING'}
+            </Text>
+          </View>
+        </View>
       ) : (
         <View style={[styles.preview, styles.previewEmpty]}>
           <Icon name={enabled ? 'camera' : 'lock'} size={30} color={COLORS.textMuted} />
@@ -112,15 +129,40 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
           </Pressable>
         ))}
 
+      <Text style={styles.stampNote}>
+        The photo is camera-only and is stamped with the date, time and GPS location when the entry is added.
+      </Text>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  stampBand: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  stampText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  stampNote: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: SPACING.sm,
+  },
   preview: {
     width: '100%',
     height: 170,
+    overflow: 'hidden',
     borderRadius: RADIUS.md,
     marginBottom: SPACING.md,
   },

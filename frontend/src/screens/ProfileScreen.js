@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Icon from '../components/Icon';
 import IconTile from '../components/IconTile';
+import LanguageSelector from '../components/LanguageSelector';
 import ScreenHeader from '../components/ScreenHeader';
 import VehicleNumberInput from '../components/VehicleNumberInput';
+import { useI18n } from '../i18n';
 import { VEHICLE_FORMAT_ERROR, vehicleLabel } from '../utils/vehicles';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
 
 function Message({ message }) {
+  const { errorText } = useI18n();
   if (!message) return null;
-  return <Text style={[styles.message, message.ok ? styles.messageOk : styles.messageError]}>{message.text}</Text>;
+  return (
+    <Text style={[styles.message, message.ok ? styles.messageOk : styles.messageError]}>
+      {message.ok ? message.text : errorText(message.text)}
+    </Text>
+  );
 }
 
 async function attempt(action, setMessage, okText) {
@@ -31,6 +38,7 @@ export default function ProfileScreen({
   onUpdateVehicle,
   onRemoveVehicle,
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(customer.name);
   const [nameMessage, setNameMessage] = useState(null);
 
@@ -58,22 +66,22 @@ export default function ProfileScreen({
     const ok = await attempt(
       () => (editing === 'new' ? onAddVehicle(customer.phone, input) : onUpdateVehicle(customer.phone, editing, input)),
       setVehicleMessage,
-      editing === 'new' ? 'Vehicle added.' : 'Vehicle updated.'
+      editing === 'new' ? t('profile.vehicleAdded') : t('profile.vehicleUpdated')
     );
     if (ok) setEditing(null);
   }
 
   async function deleteVehicle(id) {
     setConfirmDeleteId(null);
-    await attempt(() => onRemoveVehicle(customer.phone, id), setVehicleMessage, 'Vehicle removed.');
+    await attempt(() => onRemoveVehicle(customer.phone, id), setVehicleMessage, t('profile.vehicleRemoved'));
   }
 
   async function savePin() {
     if (newPin !== confirmPin) {
-      setPinMessage({ ok: false, text: 'New PIN and confirmation do not match.' });
+      setPinMessage({ ok: false, text: t('profile.pinMismatch') });
       return;
     }
-    const ok = await attempt(() => onChangePin(customer.phone, currentPin, newPin), setPinMessage, 'PIN changed.');
+    const ok = await attempt(() => onChangePin(customer.phone, currentPin, newPin), setPinMessage, t('profile.pinChanged'));
     if (ok) {
       setCurrentPin('');
       setNewPin('');
@@ -85,38 +93,43 @@ export default function ProfileScreen({
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="My profile" subtitle={`+91 ${customer.phone}`} />
+      <ScreenHeader title={t('profile.title')} subtitle={`+91 ${customer.phone}`} />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Personal details</Text>
-          <Text style={styles.fieldLabel}>Full name</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Full name" />
-          <Text style={styles.fieldLabel}>Mobile number</Text>
-          <Text style={styles.readonly}>{customer.phone} (cannot be changed — it is your login and referral code)</Text>
+          <Text style={styles.sectionTitle}>{t('language.title')}</Text>
+          <LanguageSelector />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{t('profile.personal')}</Text>
+          <Text style={styles.fieldLabel}>{t('profile.fullName')}</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={t('profile.fullName')} />
+          <Text style={styles.fieldLabel}>{t('profile.mobile')}</Text>
+          <Text style={styles.readonly}>{t('profile.mobileNote', { phone: customer.phone })}</Text>
           <Message message={nameMessage} />
           <Pressable
             style={[styles.primaryButton, !nameChanged && styles.disabled]}
             disabled={!nameChanged}
-            onPress={() => attempt(() => onUpdateName(customer.phone, name), setNameMessage, 'Profile updated.')}
+            onPress={() => attempt(() => onUpdateName(customer.phone, name), setNameMessage, t('profile.updated'))}
           >
-            <Text style={styles.primaryButtonText}>Save changes</Text>
+            <Text style={styles.primaryButtonText}>{t('profile.save')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.card}>
           <View style={styles.rowBetween}>
-            <Text style={styles.sectionTitle}>My vehicles</Text>
+            <Text style={styles.sectionTitle}>{t('profile.vehicles')}</Text>
             {editing === null && (
               <Pressable style={styles.addLink} hitSlop={12} onPress={() => startEdit(null)}>
                 <Icon name="plus" size={14} color={COLORS.primary} strokeWidth={2.4} />
-                <Text style={styles.link}>Add vehicle</Text>
+                <Text style={styles.link}>{t('profile.addVehicle')}</Text>
               </Pressable>
             )}
           </View>
 
           {customer.vehicles.length === 0 && editing !== 'new' ? (
-            <Text style={styles.emptyText}>No vehicles yet. Add one to start uploading fuel proofs.</Text>
+            <Text style={styles.emptyText}>{t('profile.noVehicles')}</Text>
           ) : null}
 
           {customer.vehicles.map((v) =>
@@ -127,16 +140,16 @@ export default function ProfileScreen({
                 {confirmDeleteId === v.id ? (
                   <View style={styles.rowActions}>
                     <Pressable hitSlop={10} onPress={() => deleteVehicle(v.id)}>
-                      <Text style={styles.dangerLink}>Confirm delete</Text>
+                      <Text style={styles.dangerLink}>{t('profile.confirmDelete')}</Text>
                     </Pressable>
                     <Pressable hitSlop={10} onPress={() => setConfirmDeleteId(null)}>
-                      <Text style={styles.link}>Cancel</Text>
+                      <Text style={styles.link}>{t('common.cancel')}</Text>
                     </Pressable>
                   </View>
                 ) : (
                   <View style={styles.rowActions}>
                     <Pressable hitSlop={10} onPress={() => startEdit(v)}>
-                      <Text style={styles.link}>Edit</Text>
+                      <Text style={styles.link}>{t('profile.edit')}</Text>
                     </Pressable>
                     <Pressable
                       hitSlop={10}
@@ -145,7 +158,7 @@ export default function ProfileScreen({
                         setConfirmDeleteId(v.id);
                       }}
                     >
-                      <Text style={styles.dangerLink}>Delete</Text>
+                      <Text style={styles.dangerLink}>{t('profile.delete')}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -155,27 +168,27 @@ export default function ProfileScreen({
 
           {editing !== null && (
             <View style={styles.vehicleForm}>
-              <Text style={styles.fieldLabel}>Vehicle number *</Text>
+              <Text style={styles.fieldLabel}>{t('profile.vehicleNumber')}</Text>
               <VehicleNumberInput
                 style={styles.input}
                 value={vehicleNumber}
                 onChangeText={setVehicleNumber}
-                placeholder="e.g. MH 40 CF 4200"
+                placeholder={t('profile.vehicleNumberExample')}
               />
-              <Text style={styles.fieldLabel}>Vehicle model (optional)</Text>
+              <Text style={styles.fieldLabel}>{t('profile.vehicleModel')}</Text>
               <TextInput
                 style={styles.input}
                 value={vehicleModel}
                 onChangeText={setVehicleModel}
-                placeholder="e.g. Land Cruiser"
+                placeholder={t('profile.vehicleModelExample')}
                 placeholderTextColor={COLORS.textMuted}
               />
               <View style={styles.formActions}>
                 <Pressable style={[styles.formButton, styles.cancelButton]} onPress={() => setEditing(null)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable style={[styles.formButton, styles.saveButton]} onPress={saveVehicle}>
-                  <Text style={styles.saveText}>{editing === 'new' ? 'Add vehicle' : 'Save vehicle'}</Text>
+                  <Text style={styles.saveText}>{editing === 'new' ? t('profile.addVehicle') : t('profile.saveVehicle')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -184,12 +197,12 @@ export default function ProfileScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Change PIN</Text>
+          <Text style={styles.sectionTitle}>{t('profile.changePin')}</Text>
           <TextInput
             style={styles.input}
             value={currentPin}
             onChangeText={(t) => setCurrentPin(t.replace(/\D/g, ''))}
-            placeholder="Current PIN"
+            placeholder={t('profile.currentPin')}
             placeholderTextColor={COLORS.textMuted}
             secureTextEntry
             keyboardType="numeric"
@@ -199,7 +212,7 @@ export default function ProfileScreen({
             style={[styles.input, styles.inputGap]}
             value={newPin}
             onChangeText={(t) => setNewPin(t.replace(/\D/g, ''))}
-            placeholder="New 4-digit PIN"
+            placeholder={t('profile.newPin')}
             placeholderTextColor={COLORS.textMuted}
             secureTextEntry
             keyboardType="numeric"
@@ -209,7 +222,7 @@ export default function ProfileScreen({
             style={[styles.input, styles.inputGap]}
             value={confirmPin}
             onChangeText={(t) => setConfirmPin(t.replace(/\D/g, ''))}
-            placeholder="Confirm new PIN"
+            placeholder={t('profile.confirmPin')}
             placeholderTextColor={COLORS.textMuted}
             secureTextEntry
             keyboardType="numeric"
@@ -217,7 +230,7 @@ export default function ProfileScreen({
           />
           <Message message={pinMessage} />
           <Pressable style={styles.primaryButton} onPress={savePin}>
-            <Text style={styles.primaryButtonText}>Change PIN</Text>
+            <Text style={styles.primaryButtonText}>{t('profile.changePin')}</Text>
           </Pressable>
         </View>
       </ScrollView>

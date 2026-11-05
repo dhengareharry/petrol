@@ -1,13 +1,13 @@
 # Reward photos
 
-Photos are from [Pexels](https://www.pexels.com) and used under the [Pexels License](https://www.pexels.com/license/) (free for commercial use, no attribution required). They were cropped to squares and compressed for the app. Credit is given here anyway.
+Except where a row says otherwise, photos are from [Pexels](https://www.pexels.com) and used under the [Pexels License](https://www.pexels.com/license/) (free for commercial use, no attribution required). They were cropped to squares and compressed for the app. Credit is given here anyway.
 
 | Reward | Photographer | Source |
 | --- | --- | --- |
 | `thermos-cup-set` | Antonio Janeski | https://www.pexels.com/photo/5243538/ |
 | `bluetooth-speaker` | Nicholas Derio Palacios | https://www.pexels.com/photo/13465232/ |
 | `mini-press` | Jonathan Borba | https://www.pexels.com/photo/28576632/ |
-| `water-can` | Tito Zzzz | https://www.pexels.com/photo/20612772/ |
+| `water-can` | Supplied by the app owner | (own picture) |
 | `cooling-fan` | Luke Yanko | https://www.pexels.com/photo/4102862/ |
 | `smart-watch` | Deise Elen | https://www.pexels.com/photo/31406903/ |
 | `speaker-with-mic` | Khang Nguyễn | https://www.pexels.com/photo/20802528/ |
@@ -28,4 +28,4 @@ Photos are from [Pexels](https://www.pexels.com) and used under the [Pexels Lice
 | `55-led-tv` | Margo Evardson | https://www.pexels.com/photo/37834298/ |
 | `refrigerator` | Raymond Petrik | https://www.pexels.com/photo/27301775/ |
 | `laptop` | Adam Sondel | https://www.pexels.com/photo/20432893/ |
-| `electric-scooter` | Brett Sayles | https://www.pexels.com/photo/9168370/ |
+| `electric-scooter` | Supplied by the app owner | (own picture) |

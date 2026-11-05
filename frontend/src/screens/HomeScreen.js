@@ -7,15 +7,10 @@ import RewardImage from '../components/RewardImage';
 import { REWARDS } from '../data/rewards';
 import { getTierInfo } from '../utils/tiers';
 import { useRules } from '../context/RulesContext';
+import { useI18n } from '../i18n';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
 
-function formatDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-async function shareReferralCode(customer, bonusPoints) {
-  const message = `Join Oasis Fuel Rewards and start earning fuel points! Use my referral code ${customer.phone} when you sign up and we both get ${bonusPoints} bonus points.`;
+async function shareReferralCode(message, copiedText) {
   if (Platform.OS === 'web') {
     if (navigator.share) {
       try {
@@ -25,7 +20,7 @@ async function shareReferralCode(customer, bonusPoints) {
       }
     } else if (navigator.clipboard) {
       await navigator.clipboard.writeText(message);
-      window.alert('Referral message copied to clipboard!');
+      window.alert(copiedText);
     } else {
       window.alert(message);
     }
@@ -43,6 +38,7 @@ const SCHEME_CARD_GAP = SPACING.md;
 
 export default function HomeScreen({ customer, onViewRewards }) {
   const { referralBonusPoints: REFERRAL_BONUS_POINTS } = useRules();
+  const { t, rewardName, tierLabel, ledgerLabel, formatDate, formatTime } = useI18n();
   const carouselRef = useRef(null);
   const carouselOffset = useRef(0);
 
@@ -67,9 +63,9 @@ export default function HomeScreen({ customer, onViewRewards }) {
           <View style={styles.balanceLeft}>
             <View style={styles.tierBadge}>
               <Icon name={current.icon} size={14} color={COLORS.accent} />
-              <Text style={styles.tierBadgeText}>{current.label} Member</Text>
+              <Text style={styles.tierBadgeText}>{t('tier.member', { tier: tierLabel(current) })}</Text>
             </View>
-            <Text style={styles.balanceLabel}>Reward points</Text>
+            <Text style={styles.balanceLabel}>{t('home.rewardPoints')}</Text>
             <Text style={styles.balanceValue}>{customer.points.toLocaleString()}</Text>
           </View>
           <View style={styles.balanceFuel}>
@@ -80,7 +76,7 @@ export default function HomeScreen({ customer, onViewRewards }) {
           <View style={[styles.tierFill, { width: `${tierProgress * 100}%` }]} />
         </View>
         <Text style={styles.balanceHint}>
-          1 point = 1 litre{next ? ` · ${pointsToNext.toLocaleString()} lifetime pts to ${next.label}` : ' · top tier reached'}
+          {next ? t('home.ruleToNext', { n: pointsToNext.toLocaleString(), tier: tierLabel(next) }) : t('home.ruleTop')}
         </Text>
       </GradientBox>
 
@@ -89,14 +85,14 @@ export default function HomeScreen({ customer, onViewRewards }) {
           <IconTile name="star" size={38} color={COLORS.accent} background={COLORS.accentSoft} />
           <View>
             <Text style={styles.statValue}>{customer.lifetimePoints.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Lifetime points</Text>
+            <Text style={styles.statLabel}>{t('home.lifetime')}</Text>
           </View>
         </View>
         <View style={styles.statCard}>
           <IconTile name="gift" size={38} color={COLORS.success} background={COLORS.successSoft} />
           <View>
             <Text style={styles.statValue}>{redeemedCount}</Text>
-            <Text style={styles.statLabel}>Redeemed</Text>
+            <Text style={styles.statLabel}>{t('home.redeemed')}</Text>
           </View>
         </View>
       </View>
@@ -104,28 +100,26 @@ export default function HomeScreen({ customer, onViewRewards }) {
       <View style={styles.infoCard}>
         <IconTile name="fuel" size={44} color={COLORS.accent} background={COLORS.surface} />
         <View style={styles.infoText}>
-          <Text style={styles.infoTitle}>Fill up at our pump</Text>
-          <Text style={styles.infoSubtitle}>
-            Our cashier records your fuel and photographs the dashboard. Your points appear here automatically.
-          </Text>
+          <Text style={styles.infoTitle}>{t('home.fillTitle')}</Text>
+          <Text style={styles.infoSubtitle}>{t('home.fillText')}</Text>
         </View>
       </View>
 
       <View style={styles.schemeHeader}>
-        <Text style={styles.sectionTitle}>Reward schemes</Text>
+        <Text style={styles.sectionTitle}>{t('home.schemes')}</Text>
         <View style={styles.schemeControls}>
           {Platform.OS === 'web' && (
             <>
-              <Pressable style={styles.arrowButton} onPress={() => scrollCarousel(-1)} accessibilityLabel="Scroll left">
+              <Pressable style={styles.arrowButton} onPress={() => scrollCarousel(-1)} accessibilityLabel={t('home.scrollLeft')}>
                 <Icon name="chevronRight" size={16} color={COLORS.primary} style={styles.flipped} />
               </Pressable>
-              <Pressable style={styles.arrowButton} onPress={() => scrollCarousel(1)} accessibilityLabel="Scroll right">
+              <Pressable style={styles.arrowButton} onPress={() => scrollCarousel(1)} accessibilityLabel={t('home.scrollRight')}>
                 <Icon name="chevronRight" size={16} color={COLORS.primary} />
               </Pressable>
             </>
           )}
           <Pressable onPress={onViewRewards}>
-            <Text style={styles.seeAll}>See all</Text>
+            <Text style={styles.seeAll}>{t('home.seeAll')}</Text>
           </Pressable>
         </View>
       </View>
@@ -149,20 +143,22 @@ export default function HomeScreen({ customer, onViewRewards }) {
             <View key={reward.id} style={[styles.schemeCard, unlocked && styles.schemeCardUnlocked]}>
               <RewardImage id={reward.id} size={120} radius={14} />
               <Text style={styles.schemeName} numberOfLines={2}>
-                {reward.name}
+                {rewardName(reward)}
               </Text>
-              <Text style={styles.schemePoints}>{reward.points.toLocaleString()} pts</Text>
+              <Text style={styles.schemePoints}>
+                {reward.points.toLocaleString()} {t('common.pts')}
+              </Text>
               {unlocked ? (
                 <View style={styles.unlockedPill}>
                   <Icon name="check" size={12} color={COLORS.success} strokeWidth={2.6} />
-                  <Text style={styles.schemeUnlocked}>Unlocked</Text>
+                  <Text style={styles.schemeUnlocked}>{t('home.unlocked')}</Text>
                 </View>
               ) : (
                 <>
                   <View style={styles.schemeTrack}>
                     <View style={[styles.schemeFill, { width: `${schemeProgress * 100}%` }]} />
                   </View>
-                  <Text style={styles.schemeToGo}>{(reward.points - customer.points).toLocaleString()} to go</Text>
+                  <Text style={styles.schemeToGo}>{t('home.toGo', { n: (reward.points - customer.points).toLocaleString() })}</Text>
                 </>
               )}
             </View>
@@ -172,12 +168,12 @@ export default function HomeScreen({ customer, onViewRewards }) {
 
       {nextReward ? (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Next reward</Text>
+          <Text style={styles.sectionTitle}>{t('home.nextReward')}</Text>
           <View style={styles.nextRewardRow}>
             <RewardImage id={nextReward.id} size={72} radius={16} />
             <View style={styles.nextRewardText}>
-              <Text style={styles.nextRewardName}>{nextReward.name}</Text>
-              <Text style={styles.nextRewardPoints}>{(nextReward.points - customer.points).toLocaleString()} pts to go</Text>
+              <Text style={styles.nextRewardName}>{rewardName(nextReward)}</Text>
+              <Text style={styles.nextRewardPoints}>{t('home.ptsToGo', { n: (nextReward.points - customer.points).toLocaleString() })}</Text>
             </View>
           </View>
           <View style={styles.progressTrack}>
@@ -187,31 +183,31 @@ export default function HomeScreen({ customer, onViewRewards }) {
       ) : (
         <View style={[styles.card, styles.allUnlocked]}>
           <Icon name="trophy" size={26} color={COLORS.accent} />
-          <Text style={styles.sectionTitle}>All rewards unlocked!</Text>
+          <Text style={styles.sectionTitle}>{t('home.allUnlocked')}</Text>
         </View>
       )}
 
       <View style={[styles.card, styles.referralCard]}>
         <View style={styles.referralHead}>
           <IconTile name="users" size={44} color={COLORS.primary} background={COLORS.surface} />
-          <Text style={styles.referralTitle}>Refer a friend, you both earn {REFERRAL_BONUS_POINTS} points</Text>
+          <Text style={styles.referralTitle}>{t('home.referTitle', { n: REFERRAL_BONUS_POINTS })}</Text>
         </View>
-        <Text style={styles.referralText}>
-          Share your referral code with friends. When they sign up using it, you both get {REFERRAL_BONUS_POINTS} bonus points.
-        </Text>
+        <Text style={styles.referralText}>{t('home.referText', { n: REFERRAL_BONUS_POINTS })}</Text>
         <View style={styles.referralCodeBox}>
-          <Text style={styles.referralCodeLabel}>Your referral code</Text>
+          <Text style={styles.referralCodeLabel}>{t('home.referCode')}</Text>
           <Text style={styles.referralCode}>{customer.phone}</Text>
         </View>
-        <Pressable style={styles.shareButton} onPress={() => shareReferralCode(customer, REFERRAL_BONUS_POINTS)}>
+        <Pressable style={styles.shareButton} onPress={() =>
+            shareReferralCode(t('home.referMessage', { phone: customer.phone, n: REFERRAL_BONUS_POINTS }), t('home.referCopied'))
+          }>
           <Icon name="share" size={16} color={COLORS.textOnPrimary} />
-          <Text style={styles.shareButtonText}>Share referral code</Text>
+          <Text style={styles.shareButtonText}>{t('home.referShare')}</Text>
         </Pressable>
       </View>
 
-      <Text style={styles.sectionLabel}>Recent activity</Text>
+      <Text style={styles.sectionLabel}>{t('home.recent')}</Text>
       {recent.length === 0 ? (
-        <Text style={styles.emptyText}>No activity yet. Fuel purchases will appear here.</Text>
+        <Text style={styles.emptyText}>{t('home.noActivity')}</Text>
       ) : (
         <View style={styles.historyList}>
           {recent.map((entry) => {
@@ -222,8 +218,10 @@ export default function HomeScreen({ customer, onViewRewards }) {
                   <Icon name={redeem ? 'arrowDown' : 'arrowUp'} size={16} color={redeem ? COLORS.danger : COLORS.success} strokeWidth={2.4} />
                 </View>
                 <View style={styles.historyTextWrap}>
-                  <Text style={styles.historyLabel}>{entry.label}</Text>
-                  <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
+                  <Text style={styles.historyLabel}>{ledgerLabel(entry.label)}</Text>
+                  <Text style={styles.historyDate}>
+                    {formatDate(entry.date)} · {formatTime(entry.date)}
+                  </Text>
                 </View>
                 <Text style={[styles.historyAmount, redeem ? styles.negative : styles.positive]}>
                   {redeem ? '-' : '+'}

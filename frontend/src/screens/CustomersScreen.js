@@ -5,6 +5,7 @@ import Icon from '../components/Icon';
 import ListFooter from '../components/ListFooter';
 import TierIcon from '../components/TierIcon';
 import VehicleNumberInput from '../components/VehicleNumberInput';
+import { useI18n } from '../i18n';
 import { cleanPhoneInput, isValidMobile, mobileHint } from '../utils/phone';
 import { getTierInfo } from '../utils/tiers';
 import { vehicleSummary } from '../utils/vehicles';
@@ -19,6 +20,7 @@ function notify(title, message) {
 }
 
 export default function CustomersScreen({ fetchCustomers, reloadKey, onSelect, onCreate }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -105,7 +107,7 @@ export default function CustomersScreen({ fetchCustomers, reloadKey, onSelect, o
             value={phone}
             onChangeText={(text) => setPhone(cleanPhoneInput(text))}
           />
-          {mobileHint(phone) ? <Text style={styles.phoneHint}>{mobileHint(phone)}</Text> : null}
+          {mobileHint(phone, t) ? <Text style={styles.phoneHint}>{mobileHint(phone, t)}</Text> : null}
           {isValidMobile(phone) ? (
             <View style={styles.phoneOkRow}>
               <Icon name="check" size={13} color={COLORS.success} strokeWidth={2.6} />
