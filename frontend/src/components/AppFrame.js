@@ -1,7 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppHeader from './AppHeader';
 import TabBar from './TabBar';
+import { useSession } from '../context/SessionContext';
+import { useI18n } from '../i18n';
 import useLayout from '../utils/useLayout';
 import { COLORS, SHADOW } from '../theme';
 
@@ -11,11 +13,18 @@ import { COLORS, SHADOW } from '../theme';
  */
 export default function AppFrame({ header, tabs, activeKey, onChangeTab, children }) {
   const { isTablet, isWide, contentMaxWidth } = useLayout();
+  const { syncError } = useSession();
+  const { t } = useI18n();
 
   return (
     // Left/right insets keep content clear of notches and rounded corners in landscape.
     <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <AppHeader {...header} />
+      {syncError ? (
+        <View style={styles.banner} accessibilityRole="alert">
+          <Text style={styles.bannerText}>{t('sync.offline')}</Text>
+        </View>
+      ) : null}
       <View style={styles.body}>
         {isTablet && <TabBar variant="rail" tabs={tabs} activeKey={activeKey} onChange={onChangeTab} />}
         <View style={styles.stage}>
@@ -33,6 +42,17 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.primaryDark,
+  },
+  banner: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  bannerText: {
+    color: COLORS.textOnPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   body: {
     flex: 1,

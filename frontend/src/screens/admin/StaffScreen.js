@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MIN_STAFF_PASSWORD_LENGTH, STAFF_ROLES } from '../../rules';
+import { staffFieldsError } from '../../utils/validation';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
 const ROLE_LABEL = { admin: 'Admin', cashier: 'Cashier' };
@@ -27,6 +28,7 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
   const [username, setUsername] = useState(account.username);
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   function startEdit() {
     setName(account.name);
@@ -37,7 +39,15 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
   }
 
   async function saveEdit() {
+    if (busy) return;
+    const problem = staffFieldsError({ name, username, password, passwordRequired: false });
+    if (problem) {
+      setMessage({ ok: false, text: problem });
+      return;
+    }
+    setBusy(true);
     const ok = await attempt(() => onUpdate(account.id, { name, username, password }), setMessage, 'Account updated.');
+    setBusy(false);
     if (ok) setEditing(false);
   }
 
@@ -65,6 +75,7 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
             onChangeText={setName}
             placeholder="Full name"
             placeholderTextColor={COLORS.textMuted}
+            maxLength={100}
           />
           <TextInput
             style={styles.input}
@@ -74,6 +85,7 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
             placeholderTextColor={COLORS.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
+            maxLength={20}
           />
           <TextInput
             style={styles.input}
@@ -82,13 +94,14 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
             placeholder={`New password (leave blank to keep, min ${MIN_STAFF_PASSWORD_LENGTH})`}
             placeholderTextColor={COLORS.textMuted}
             secureTextEntry
+            maxLength={100}
           />
           <View style={styles.actions}>
             <Pressable onPress={() => setEditing(false)}>
               <Text style={styles.link}>Cancel</Text>
             </Pressable>
-            <Pressable onPress={saveEdit}>
-              <Text style={styles.link}>Save changes</Text>
+            <Pressable onPress={saveEdit} disabled={busy}>
+              <Text style={[styles.link, busy && styles.linkBusy]}>{busy ? 'Saving…' : 'Save changes'}</Text>
             </Pressable>
           </View>
         </View>
@@ -98,9 +111,12 @@ function StaffRow({ account, isSelf, onUpdate, onSetActive }) {
             <Text style={styles.link}>Edit</Text>
           </Pressable>
           <Pressable
-            onPress={() =>
-              attempt(() => onSetActive(account.id, !account.active), setMessage, account.active ? 'Account disabled.' : 'Account enabled.')
-            }
+            disabled={busy}
+            onPress={async () => {
+              setBusy(true);
+              await attempt(() => onSetActive(account.id, !account.active), setMessage, account.active ? 'Account disabled.' : 'Account enabled.');
+              setBusy(false);
+            }}
           >
             <Text style={account.active ? styles.dangerLink : styles.link}>{account.active ? 'Disable' : 'Enable'}</Text>
           </Pressable>
@@ -118,9 +134,18 @@ export default function StaffScreen({ staffList, currentStaffId, onCreate, onUpd
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('cashier');
   const [message, setMessage] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   async function create() {
+    if (creating) return;
+    const problem = staffFieldsError({ name, username, password, passwordRequired: true });
+    if (problem) {
+      setMessage({ ok: false, text: problem });
+      return;
+    }
+    setCreating(true);
     const ok = await attempt(() => onCreate({ name, username, password, role }), setMessage, 'Staff account created.');
+    setCreating(false);
     if (ok) {
       setName('');
       setUsername('');
@@ -157,6 +182,7 @@ export default function StaffScreen({ staffList, currentStaffId, onCreate, onUpd
               onChangeText={setName}
               placeholder="Full name"
               placeholderTextColor={COLORS.textMuted}
+              maxLength={100}
             />
             <TextInput
               style={styles.input}
@@ -166,6 +192,7 @@ export default function StaffScreen({ staffList, currentStaffId, onCreate, onUpd
               placeholderTextColor={COLORS.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
+              maxLength={20}
             />
             <TextInput
               style={styles.input}
@@ -174,6 +201,7 @@ export default function StaffScreen({ staffList, currentStaffId, onCreate, onUpd
               placeholder={`Temporary password (min ${MIN_STAFF_PASSWORD_LENGTH} characters)`}
               placeholderTextColor={COLORS.textMuted}
               secureTextEntry
+              maxLength={100}
             />
             <View style={styles.roleRow}>
               {STAFF_ROLES.map((r) => (
@@ -187,8 +215,8 @@ export default function StaffScreen({ staffList, currentStaffId, onCreate, onUpd
                 ? 'Cashiers can record fuel, review fuel proofs and redeem requests, and manage customers.'
                 : 'Admins manage the program (dashboard, staff, approvals) but cannot record fuel entries.'}
             </Text>
-            <Pressable style={styles.saveButton} onPress={create}>
-              <Text style={styles.saveButtonText}>Create account</Text>
+            <Pressable style={[styles.saveButton, creating && styles.linkBusy]} disabled={creating} onPress={create}>
+              <Text style={styles.saveButtonText}>{creating ? 'Creating…' : 'Create account'}</Text>
             </Pressable>
           </View>
         )}
@@ -375,5 +403,8 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontWeight: '700',
     fontSize: 12,
+  },
+  linkBusy: {
+    opacity: 0.5,
   },
 });

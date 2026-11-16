@@ -9,18 +9,21 @@ const FIELDS = [
     label: 'Fuel rate (₹ per litre)',
     hint: 'Converts rupees to litres. 1 point is earned per litre, so a ₹600 fill-up at ₹100/ltr earns 6 points.',
     min: 1,
+    max: 10000,
   },
   {
     key: 'minFuelAmountRupees',
     label: 'Minimum fill-up (₹)',
     hint: 'Fuel entries and fuel proofs below this amount do not earn points.',
     min: 1,
+    max: 100000,
   },
   {
     key: 'referralBonusPoints',
     label: 'Referral bonus (points)',
     hint: 'Paid to both the customer who shares their code and the friend who signs up with it. 0 turns it off.',
     min: 0,
+    max: 100000,
   },
 ];
 
@@ -39,11 +42,17 @@ export default function SettingsScreen({ onBack }) {
     const changes = {};
     for (const field of FIELDS) {
       const text = values[field.key].trim();
-      if (!/^\d+$/.test(text) || Number(text) < field.min) {
-        setMessage({ ok: false, text: `${field.label}: enter a whole number of ${field.min} or more.` });
+      if (!/^\d+$/.test(text) || Number(text) < field.min || Number(text) > field.max) {
+        setMessage({ ok: false, text: `${field.label}: enter a whole number from ${field.min} to ${field.max.toLocaleString('en-IN')}.` });
         return;
       }
       changes[field.key] = Number(text);
+    }
+    // Points are rupees / rate rounded, so the smallest allowed fill-up has to be worth at least half the rate to earn one.
+    const floor = Math.ceil(changes.fuelRatePerLitre / 2);
+    if (changes.minFuelAmountRupees < floor) {
+      setMessage({ ok: false, text: `The minimum fill-up must be at least ₹${floor} (half the fuel rate), or it would earn no points.` });
+      return;
     }
     setSaving(true);
     setMessage(null);
@@ -73,7 +82,8 @@ export default function SettingsScreen({ onBack }) {
             <Text style={styles.label}>{field.label}</Text>
             <TextInput
               style={styles.input}
-              keyboardType="numeric"
+              keyboardType="number-pad"
+              maxLength={6}
               value={values[field.key]}
               onChangeText={(text) => {
                 setValues((prev) => ({ ...prev, [field.key]: text }));

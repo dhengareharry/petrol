@@ -94,6 +94,7 @@ export default function CustomersScreen({ fetchCustomers, reloadKey, onSelect, o
           <TextInput
             style={styles.input}
             placeholder="Customer name"
+            maxLength={100}
             placeholderTextColor={COLORS.textMuted}
             value={name}
             onChangeText={setName}
@@ -117,6 +118,7 @@ export default function CustomersScreen({ fetchCustomers, reloadKey, onSelect, o
           <TextInput
             style={styles.input}
             placeholder="Vehicle model (optional, e.g. Land Cruiser)"
+            maxLength={60}
             placeholderTextColor={COLORS.textMuted}
             value={vehicleModel}
             onChangeText={setVehicleModel}

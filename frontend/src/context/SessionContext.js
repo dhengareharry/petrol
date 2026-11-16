@@ -31,6 +31,8 @@ export function SessionProvider({ children }) {
   // Bumped whenever staff data changes, so paged lists on screen reload.
   const [dataVersion, setDataVersion] = useState(0);
   const [loading, setLoading] = useState(false);
+  // The latest refresh failed (no connection, or the server is down): screens show a banner and keep the last data.
+  const [syncError, setSyncError] = useState(false);
   const roleRef = useRef(role);
   roleRef.current = role;
   // Read through a ref so actions stay stable as the cache fills (a changing identity would re-trigger effects that call them).
@@ -101,12 +103,14 @@ export function SessionProvider({ children }) {
       setHistoryByPhone({});
       pendingSignature.current = '';
       setLoading(false);
+      setSyncError(false);
       return undefined;
     }
     let cancelled = false;
     setLoading(true);
     refresh()
-      .catch(() => undefined) // the screens show an empty state; the next poll or action retries
+      .then(() => !cancelled && setSyncError(false))
+      .catch(() => !cancelled && setSyncError(true)) // the screens keep what they have and show a banner; the next poll retries
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -117,7 +121,7 @@ export function SessionProvider({ children }) {
 
   useEffect(() => {
     if (!role) return undefined;
-    const timer = setInterval(() => refresh().catch(() => undefined), POLL_MS);
+    const timer = setInterval(() => refresh().then(() => setSyncError(false)).catch(() => setSyncError(true)), POLL_MS);
     return () => clearInterval(timer);
   }, [role, refresh]);
 
@@ -202,6 +206,9 @@ export function SessionProvider({ children }) {
       }),
     [mutate, rememberCustomers]
   );
+
+  // The signed-in customer deletes their own account (the server asks for the PIN again). Signing out afterwards is up to the caller.
+  const deleteAccount = useCallback((pin) => apiRequest('/me', { method: 'DELETE', body: { pin } }), []);
 
   // A cashier/admin sets a new PIN for a customer who forgot theirs (there is no SMS reset while SMS verification is off).
   const resetCustomerPin = useCallback(async (phone, newPin) => {
@@ -354,6 +361,7 @@ export function SessionProvider({ children }) {
       pendingClaims,
       staffList,
       stats,
+      syncError,
       dataVersion,
       refresh,
       fetchCustomerPage,
@@ -363,6 +371,7 @@ export function SessionProvider({ children }) {
       openCustomer,
       addCustomer,
       resetCustomerPin,
+      deleteAccount,
       creditPoints,
       requestRedemption,
       approveRequest,
@@ -389,6 +398,7 @@ export function SessionProvider({ children }) {
       pendingClaims,
       staffList,
       stats,
+      syncError,
       dataVersion,
       refresh,
       fetchCustomerPage,
@@ -398,6 +408,7 @@ export function SessionProvider({ children }) {
       openCustomer,
       addCustomer,
       resetCustomerPin,
+      deleteAccount,
       creditPoints,
       requestRedemption,
       approveRequest,

@@ -8,12 +8,31 @@ export default function MyAccountScreen({ account, onChangePassword, onBack }) {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [message, setMessage] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   async function save() {
+    if (saving) return;
+    if (!current) {
+      setMessage({ ok: false, text: 'Enter your current password.' });
+      return;
+    }
+    if (next.length < MIN_STAFF_PASSWORD_LENGTH) {
+      setMessage({ ok: false, text: `The new password must be at least ${MIN_STAFF_PASSWORD_LENGTH} characters.` });
+      return;
+    }
+    if (next.length > 100) {
+      setMessage({ ok: false, text: 'The new password can be at most 100 characters.' });
+      return;
+    }
+    if (next === current) {
+      setMessage({ ok: false, text: 'The new password must be different from the current one.' });
+      return;
+    }
     if (next !== confirm) {
       setMessage({ ok: false, text: 'New password and confirmation do not match.' });
       return;
     }
+    setSaving(true);
     try {
       await onChangePassword(account.id, current, next);
       setMessage({ ok: true, text: 'Password changed.' });
@@ -22,6 +41,8 @@ export default function MyAccountScreen({ account, onChangePassword, onBack }) {
       setConfirm('');
     } catch (err) {
       setMessage({ ok: false, text: err.message });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -72,8 +93,8 @@ export default function MyAccountScreen({ account, onChangePassword, onBack }) {
           {message ? (
             <Text style={[styles.message, message.ok ? styles.messageOk : styles.messageError]}>{message.text}</Text>
           ) : null}
-          <Pressable style={styles.saveButton} onPress={save}>
-            <Text style={styles.saveButtonText}>Change password</Text>
+          <Pressable style={[styles.saveButton, saving && { opacity: 0.6 }]} disabled={saving} onPress={save}>
+            <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Change password'}</Text>
           </Pressable>
         </View>
       </ScrollView>

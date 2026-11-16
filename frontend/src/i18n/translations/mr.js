@@ -195,6 +195,26 @@ const mr = {
   'err.vehicleNotFound': 'वाहन सापडले नाही.',
   'err.notActive': 'हे खाते आता सक्रिय नाही.',
   'err.disabled': 'हे खाते बंद केले आहे. ॲडमिनशी संपर्क साधा.',
+
+  // ---- account deletion, connection and crash messages ----
+  'profile.nameRequired': 'तुमचे नाव टाका.',
+  'profile.currentPinRequired': 'तुमचा सध्याचा पिन टाका.',
+  'profile.pinDigits': 'नवीन पिन अगदी 4 अंकी असला पाहिजे.',
+  'profile.deleteTitle': 'माझे खाते हटवा',
+  'profile.deleteText': 'यामुळे तुमचे खाते, तुमचे पॉइंट आणि इंधन हिस्ट्री कायमची हटवली जाईल. हे परत करता येत नाही.',
+  'profile.deleteButton': 'माझे खाते हटवा',
+  'profile.deletePin': 'खात्री करण्यासाठी तुमचा पिन टाका',
+  'profile.deleteConfirm': 'होय, कायमचे हटवा',
+  'profile.deleting': 'हटवत आहे…',
+  'profile.privacy': 'गोपनीयता धोरण',
+  'login.privacy': 'गोपनीयता धोरण',
+  'conn.title': 'कनेक्ट होत नाही',
+  'conn.text': 'सर्व्हरशी संपर्क होऊ शकला नाही. तुमचे इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.',
+  'conn.retry': 'पुन्हा प्रयत्न करा',
+  'sync.offline': 'सर्व्हरशी संपर्क होत नाही. मागील माहिती दिसत आहे; पुन्हा प्रयत्न सुरू आहे…',
+  'crash.title': 'काहीतरी चुकले',
+  'crash.text': 'ॲपमध्ये अचानक समस्या आली. कृपया पुन्हा प्रयत्न करा. वारंवार होत असल्यास ॲप पुन्हा उघडा.',
+  'crash.retry': 'पुन्हा प्रयत्न करा',
 };
 
 const rewards = {

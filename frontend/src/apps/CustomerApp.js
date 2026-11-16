@@ -30,6 +30,7 @@ export default function CustomerApp() {
     claims,
     updateProfileName,
     changePin,
+    deleteAccount,
     addVehicle,
     updateVehicle,
     removeVehicle,
@@ -91,6 +92,10 @@ export default function CustomerApp() {
             onAddVehicle={addVehicle}
             onUpdateVehicle={updateVehicle}
             onRemoveVehicle={removeVehicle}
+            onDeleteAccount={async (pin) => {
+              await deleteAccount(pin);
+              await logout(); // the account is gone, so this just clears the device
+            }}
           />
         )}
         {activeTab === 'redemptions' && <RedemptionsScreen customer={customer} requests={requests} claims={claims} />}

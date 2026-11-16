@@ -6,7 +6,8 @@ import LanguageSelector from '../components/LanguageSelector';
 import ScreenHeader from '../components/ScreenHeader';
 import VehicleNumberInput from '../components/VehicleNumberInput';
 import { useI18n } from '../i18n';
-import { VEHICLE_FORMAT_ERROR, vehicleLabel } from '../utils/vehicles';
+import { openPrivacyPolicy } from '../utils/links';
+import { VEHICLE_FORMAT_ERROR, isValidVehicleNumber, vehicleLabel } from '../utils/vehicles';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
 
 function Message({ message }) {
@@ -37,6 +38,7 @@ export default function ProfileScreen({
   onAddVehicle,
   onUpdateVehicle,
   onRemoveVehicle,
+  onDeleteAccount,
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(customer.name);
@@ -53,6 +55,11 @@ export default function ProfileScreen({
   const [confirmPin, setConfirmPin] = useState('');
   const [pinMessage, setPinMessage] = useState(null);
 
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePin, setDeletePin] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState(null);
+
   function startEdit(vehicle) {
     setVehicleMessage(null);
     setConfirmDeleteId(null);
@@ -61,7 +68,33 @@ export default function ProfileScreen({
     setVehicleNumber(vehicle ? vehicle.number : '');
   }
 
+  function saveName() {
+    if (!name.trim()) {
+      setNameMessage({ ok: false, text: t('profile.nameRequired') });
+      return;
+    }
+    attempt(() => onUpdateName(customer.phone, name), setNameMessage, t('profile.updated'));
+  }
+
+  async function confirmDelete() {
+    if (!deletePin.trim()) {
+      setDeleteMessage({ ok: false, text: t('profile.currentPinRequired') });
+      return;
+    }
+    setDeleting(true);
+    try {
+      await onDeleteAccount(deletePin.trim()); // on success the app signs out, so this screen goes away
+    } catch (err) {
+      setDeleteMessage({ ok: false, text: err.message });
+      setDeleting(false);
+    }
+  }
+
   async function saveVehicle() {
+    if (!isValidVehicleNumber(vehicleNumber)) {
+      setVehicleMessage({ ok: false, text: t('vehicle.error') });
+      return;
+    }
     const input = { model: vehicleModel, number: vehicleNumber };
     const ok = await attempt(
       () => (editing === 'new' ? onAddVehicle(customer.phone, input) : onUpdateVehicle(customer.phone, editing, input)),
@@ -77,6 +110,14 @@ export default function ProfileScreen({
   }
 
   async function savePin() {
+    if (!currentPin) {
+      setPinMessage({ ok: false, text: t('profile.currentPinRequired') });
+      return;
+    }
+    if (!/^\d{4}$/.test(newPin)) {
+      setPinMessage({ ok: false, text: t('profile.pinDigits') });
+      return;
+    }
     if (newPin !== confirmPin) {
       setPinMessage({ ok: false, text: t('profile.pinMismatch') });
       return;
@@ -104,14 +145,14 @@ export default function ProfileScreen({
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t('profile.personal')}</Text>
           <Text style={styles.fieldLabel}>{t('profile.fullName')}</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={t('profile.fullName')} />
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={t('profile.fullName')} maxLength={100} />
           <Text style={styles.fieldLabel}>{t('profile.mobile')}</Text>
           <Text style={styles.readonly}>{t('profile.mobileNote', { phone: customer.phone })}</Text>
           <Message message={nameMessage} />
           <Pressable
             style={[styles.primaryButton, !nameChanged && styles.disabled]}
             disabled={!nameChanged}
-            onPress={() => attempt(() => onUpdateName(customer.phone, name), setNameMessage, t('profile.updated'))}
+            onPress={saveName}
           >
             <Text style={styles.primaryButtonText}>{t('profile.save')}</Text>
           </Pressable>
@@ -181,6 +222,7 @@ export default function ProfileScreen({
                 value={vehicleModel}
                 onChangeText={setVehicleModel}
                 placeholder={t('profile.vehicleModelExample')}
+                maxLength={60}
                 placeholderTextColor={COLORS.textMuted}
               />
               <View style={styles.formActions}>
@@ -233,6 +275,54 @@ export default function ProfileScreen({
             <Text style={styles.primaryButtonText}>{t('profile.changePin')}</Text>
           </Pressable>
         </View>
+
+        <View style={[styles.card, styles.dangerCard]}>
+          <Text style={styles.sectionTitle}>{t('profile.deleteTitle')}</Text>
+          <Text style={styles.readonly}>{t('profile.deleteText')}</Text>
+          {showDelete ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={deletePin}
+                onChangeText={(text) => {
+                  setDeletePin(text.replace(/\D/g, ''));
+                  setDeleteMessage(null);
+                }}
+                placeholder={t('profile.deletePin')}
+                placeholderTextColor={COLORS.textMuted}
+                secureTextEntry
+                keyboardType="number-pad"
+                maxLength={4}
+                editable={!deleting}
+              />
+              <Message message={deleteMessage} />
+              <View style={styles.formActions}>
+                <Pressable
+                  style={[styles.formButton, styles.cancelButton]}
+                  disabled={deleting}
+                  onPress={() => {
+                    setShowDelete(false);
+                    setDeletePin('');
+                    setDeleteMessage(null);
+                  }}
+                >
+                  <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                </Pressable>
+                <Pressable style={[styles.formButton, styles.deleteConfirmButton, deleting && styles.disabled]} disabled={deleting} onPress={confirmDelete}>
+                  <Text style={styles.saveText}>{deleting ? t('profile.deleting') : t('profile.deleteConfirm')}</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <Pressable style={styles.deleteButton} onPress={() => setShowDelete(true)} accessibilityRole="button">
+              <Text style={styles.deleteButtonText}>{t('profile.deleteButton')}</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <Pressable style={styles.privacyLink} onPress={openPrivacyPolicy} hitSlop={10} accessibilityRole="link">
+          <Text style={styles.link}>{t('profile.privacy')}</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -383,5 +473,30 @@ const styles = StyleSheet.create({
     color: COLORS.textOnPrimary,
     fontWeight: '700',
     fontSize: 13,
+  },
+  dangerCard: {
+    borderWidth: 1,
+    borderColor: COLORS.dangerSoft,
+  },
+  deleteButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
+    marginTop: SPACING.sm,
+  },
+  deleteButtonText: {
+    color: COLORS.danger,
+    fontWeight: '800',
+    fontSize: FONT.body,
+  },
+  deleteConfirmButton: {
+    backgroundColor: COLORS.danger,
+  },
+  privacyLink: {
+    alignSelf: 'center',
+    paddingVertical: SPACING.md,
   },
 });

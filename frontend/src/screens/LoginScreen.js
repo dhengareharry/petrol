@@ -10,6 +10,7 @@ import Logo from '../components/Logo';
 import VehicleNumberInput from '../components/VehicleNumberInput';
 import { useRules } from '../context/RulesContext';
 import { useI18n } from '../i18n';
+import { openPrivacyPolicy } from '../utils/links';
 import { cleanPhoneInput, isValidMobile, mobileHint } from '../utils/phone';
 import useLayout from '../utils/useLayout';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
@@ -296,7 +297,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
             ) : (
               <>
                 {registering && (
-                  <Field icon="user" placeholder={t('login.fullName')} value={name} onChangeText={setName} autoCapitalize="words" />
+                  <Field icon="user" placeholder={t('login.fullName')} value={name} onChangeText={setName} autoCapitalize="words" maxLength={100} />
                 )}
 
                 <Field
@@ -322,6 +323,7 @@ export default function LoginScreen({ onLogin, onRegister }) {
                     <Field
                       icon="car"
                       placeholder={t('login.vehicleModel')}
+                      maxLength={60}
                       value={vehicleModel}
                       onChangeText={setVehicleModel}
                     />
@@ -384,6 +386,10 @@ export default function LoginScreen({ onLogin, onRegister }) {
                 </Pressable>
               </>
             )}
+
+            <Pressable style={styles.privacyLink} onPress={openPrivacyPolicy} hitSlop={10} accessibilityRole="link">
+              <Text style={styles.privacyText}>{t('login.privacy')}</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -612,6 +618,16 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 13,
     fontWeight: '700',
+  },
+  privacyLink: {
+    alignSelf: 'center',
+    paddingVertical: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  privacyText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
   linkDisabled: {
     color: COLORS.textMuted,

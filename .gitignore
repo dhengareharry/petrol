@@ -1,0 +1,8 @@
+# Each part keeps its own ignore rules (frontend/.gitignore, backend/.gitignore). These catch anything at the top level.
+node_modules/
+.DS_Store
+.env
+.env*.local
+
+# The API moved to its own repository (petrol-backend). Remove this line once the old folder is deleted.
+/backend/

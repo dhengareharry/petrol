@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import ConnectionScreen from './src/components/ConnectionScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import AdminApp from './src/apps/AdminApp';
 import CustomerApp from './src/apps/CustomerApp';
@@ -25,6 +27,9 @@ function AppRouter() {
       </SafeAreaView>
     );
   }
+
+  // A saved sign-in exists but the server could not be reached: say so, and let the user retry.
+  if (auth.connectionError) return <ConnectionScreen onRetry={auth.retryRestore} />;
 
   if (auth.role === 'admin' || auth.role === 'cashier') {
     return (
@@ -50,7 +55,9 @@ export default function App() {
           <AuthProvider>
             <SessionProvider>
               <View style={styles.root}>
-                <AppRouter />
+                <ErrorBoundary>
+                  <AppRouter />
+                </ErrorBoundary>
                 <StatusBar style="light" />
               </View>
             </SessionProvider>

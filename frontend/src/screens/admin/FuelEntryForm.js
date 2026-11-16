@@ -6,6 +6,7 @@ import RewardImage from '../../components/RewardImage';
 import VehicleNumberInput from '../../components/VehicleNumberInput';
 import { REWARDS } from '../../data/rewards';
 import { useRules } from '../../context/RulesContext';
+import { MAX_FUEL_LITRES, MAX_FUEL_RUPEES } from '../../utils/validation';
 import { isValidVehicleNumber, vehicleLabel } from '../../utils/vehicles';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
@@ -36,23 +37,32 @@ export default function FuelEntryForm({ customer, onCreditPoints }) {
   const hasVehicles = customer.vehicles.length > 0;
   const vehicleReady = hasVehicles ? Boolean(vehicleId) : isValidVehicleNumber(typedVehicle);
   const amountRupees = Number(rupeesText);
-  const amountValid = amountRupees >= MIN_FUEL_AMOUNT_RUPEES;
+  const amountTooLarge = amountRupees > MAX_FUEL_RUPEES;
+  const amountValid = Number.isInteger(amountRupees) && amountRupees >= MIN_FUEL_AMOUNT_RUPEES && !amountTooLarge;
   const proofReady = Boolean(proof?.photoDataUri && proof?.location);
   const canSubmit = vehicleReady && amountValid && proofReady;
 
-  function handleRupeesChange(text) {
+  // Only digits can be typed, and no more than the largest amount allowed (7 digits is already past it).
+  function handleRupeesChange(raw) {
+    const text = String(raw).replace(/\D/g, '').slice(0, 7);
     setRupeesText(text);
     const n = Number(text);
     setLitresText(text && !Number.isNaN(n) ? (n / FUEL_RATE_PER_LITRE).toFixed(2) : '');
   }
 
-  function handleLitresChange(text) {
+  // Digits and one decimal point.
+  function handleLitresChange(raw) {
+    const text = String(raw).replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').slice(0, 8);
     setLitresText(text);
     const n = Number(text);
     setRupeesText(text && !Number.isNaN(n) ? String(Math.round(n * FUEL_RATE_PER_LITRE)) : '');
   }
 
   async function submit() {
+    if (amountTooLarge) {
+      notify('Amount too large', `One entry can be at most ₹${MAX_FUEL_RUPEES.toLocaleString('en-IN')} (${MAX_FUEL_LITRES.toLocaleString('en-IN')} ltr). Check the amount.`);
+      return;
+    }
     if (!amountValid) {
       notify(
         'Entry too small',
@@ -165,6 +175,12 @@ export default function FuelEntryForm({ customer, onCreditPoints }) {
           </Pressable>
         ))}
       </View>
+
+      {amountTooLarge ? (
+        <Text style={styles.amountError}>
+          That is more than one entry can be (₹{MAX_FUEL_RUPEES.toLocaleString('en-IN')}). Check the amount.
+        </Text>
+      ) : null}
 
       <Text style={[styles.fieldLabel, styles.proofLabel]}>Dashboard photo + location *</Text>
       <DashboardProof
@@ -354,5 +370,11 @@ const styles = StyleSheet.create({
   unlockedItem: {
     fontSize: 12,
     color: '#92400E',
+  },
+  amountError: {
+    fontSize: 12,
+    color: COLORS.danger,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
   },
 });

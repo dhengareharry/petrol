@@ -13,6 +13,8 @@ export function AuthProvider({ children }) {
   const [customerPhone, setCustomerPhone] = useState(null);
   const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
+  // The saved sign-in could not be checked because the server was unreachable (as opposed to being rejected).
+  const [connectionError, setConnectionError] = useState(false);
 
   const endLocally = useCallback(async () => {
     setSession(null);
@@ -27,23 +29,33 @@ export function AuthProvider({ children }) {
     return () => setSessionHandlers({});
   }, [endLocally]);
 
-  useEffect(() => {
-    async function restore() {
-      const saved = await getSession();
-      if (!saved) return;
-      setSession(saved);
-      try {
-        const me = await fetchMe(); // renews the tokens first if the saved access token has expired
-        if (me.role === 'CUSTOMER') setCustomerPhone(me.customer.phone);
-        else setStaff(toStaff(me.staff));
-      } catch (error) {
-        // A rejected session is discarded (the client already did so). If the server is merely unreachable, keep it for next time.
-        if (error.status === 401 || error.status === 403) await endLocally();
-        else setSession(null);
+  const restore = useCallback(async () => {
+    setConnectionError(false);
+    const saved = await getSession();
+    if (!saved) return;
+    setSession(saved);
+    try {
+      const me = await fetchMe(); // renews the tokens first if the saved access token has expired
+      if (me.role === 'CUSTOMER') setCustomerPhone(me.customer.phone);
+      else setStaff(toStaff(me.staff));
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) {
+        await endLocally(); // the server rejected the session: it is over
+      } else {
+        // Merely unreachable (or a server hiccup): keep the saved sign-in and let the user retry from a clear screen.
+        setSession(null);
+        setConnectionError(true);
       }
     }
-    restore().finally(() => setLoading(false));
   }, [endLocally]);
+
+  useEffect(() => {
+    restore().finally(() => setLoading(false));
+  }, [restore]);
+
+  const retryRestore = useCallback(async () => {
+    await restore();
+  }, [restore]);
 
   const startSession = useCallback(async ({ token, refreshToken }) => {
     setSession({ token, refreshToken });
@@ -97,8 +109,8 @@ export function AuthProvider({ children }) {
   const role = customerPhone ? 'customer' : staff ? staff.role : null;
 
   const value = useMemo(
-    () => ({ loading, role, customerPhone, staff, login, loginAsStaff, loginAsCustomer, registerAsCustomer, logout }),
-    [loading, role, customerPhone, staff, login, loginAsStaff, loginAsCustomer, registerAsCustomer, logout]
+    () => ({ loading, connectionError, retryRestore, role, customerPhone, staff, login, loginAsStaff, loginAsCustomer, registerAsCustomer, logout }),
+    [loading, connectionError, retryRestore, role, customerPhone, staff, login, loginAsStaff, loginAsCustomer, registerAsCustomer, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

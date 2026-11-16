@@ -196,6 +196,26 @@ const en = {
   'err.vehicleNotFound': 'Vehicle not found.',
   'err.notActive': 'This account is no longer active.',
   'err.disabled': 'This account has been disabled. Contact an admin.',
+
+  // ---- account deletion, connection and crash messages ----
+  'profile.nameRequired': 'Enter your name.',
+  'profile.currentPinRequired': 'Enter your current PIN.',
+  'profile.pinDigits': 'The new PIN must be exactly 4 digits.',
+  'profile.deleteTitle': 'Delete my account',
+  'profile.deleteText': 'This permanently deletes your account, your points and your fuel history. It cannot be undone.',
+  'profile.deleteButton': 'Delete my account',
+  'profile.deletePin': 'Enter your PIN to confirm',
+  'profile.deleteConfirm': 'Yes, delete permanently',
+  'profile.deleting': 'Deleting…',
+  'profile.privacy': 'Privacy policy',
+  'login.privacy': 'Privacy policy',
+  'conn.title': 'Can\'t connect',
+  'conn.text': 'We could not reach the server. Check your internet connection and try again.',
+  'conn.retry': 'Try again',
+  'sync.offline': 'Can\'t reach the server. Showing the last information; retrying…',
+  'crash.title': 'Something went wrong',
+  'crash.text': 'The app hit an unexpected problem. Please try again. If it keeps happening, restart the app.',
+  'crash.retry': 'Try again',
 };
 
 // The names of the 25 rewards.
