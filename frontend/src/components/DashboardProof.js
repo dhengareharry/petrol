@@ -26,14 +26,24 @@ function formatTaken(iso) {
  * `value` is { photoDataUri, location } (location is null until it has been read); `onChange` receives the new value.
  * Disabled (with `lockedText` shown) until the details the proof belongs to have been filled in.
  */
-export default function DashboardProof({ enabled, lockedText, value, onChange }) {
+const DEFAULT_LABELS = {
+  empty: 'Photograph the vehicle dashboard',
+  take: 'Take dashboard photo',
+  retake: 'Retake dashboard photo',
+  cameraDenied: 'Camera permission is required to photograph the dashboard. Please allow it in settings.',
+  locationDenied: 'Location permission is required to record where the fill-up happened. Please allow it and try again.',
+  note: 'The photo is camera-only and is stamped with the date, time and GPS location when the entry is added.',
+};
+
+export default function DashboardProof({ enabled, lockedText, value, onChange, labels: customLabels }) {
+  const labels = { ...DEFAULT_LABELS, ...customLabels };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function readLocation() {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) {
-      setError('Location permission is required to record where the fill-up happened. Please allow it and try again.');
+      setError(labels.locationDenied);
       return null;
     }
     const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -48,7 +58,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
     try {
       const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
       if (!cameraPermission.granted) {
-        setError('Camera permission is required to photograph the dashboard. Please allow it in settings.');
+        setError(labels.cameraDenied);
         return;
       }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
@@ -102,7 +112,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
       ) : (
         <View style={[styles.preview, styles.previewEmpty]}>
           <Icon name={enabled ? 'camera' : 'lock'} size={30} color={COLORS.textMuted} />
-          <Text style={styles.previewText}>{enabled ? 'Photograph the vehicle dashboard' : lockedText}</Text>
+          <Text style={styles.previewText}>{enabled ? labels.empty : lockedText}</Text>
         </View>
       )}
 
@@ -111,7 +121,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
         disabled={busy || !enabled}
         onPress={takePhoto}
       >
-        <Text style={styles.buttonText}>{busy ? 'Please wait…' : hasPhoto ? 'Retake dashboard photo' : 'Take dashboard photo'}</Text>
+        <Text style={styles.buttonText}>{busy ? 'Please wait…' : hasPhoto ? labels.retake : labels.take}</Text>
       </Pressable>
 
       {hasPhoto &&
@@ -129,9 +139,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange })
           </Pressable>
         ))}
 
-      <Text style={styles.stampNote}>
-        The photo is camera-only and is stamped with the date, time and GPS location when the entry is added.
-      </Text>
+      <Text style={styles.stampNote}>{labels.note}</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>

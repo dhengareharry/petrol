@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import usePagedList from '../../api/usePagedList';
+import ClaimPhoto from '../../components/ClaimPhoto';
+import DashboardProof from '../../components/DashboardProof';
 import RewardImage from '../../components/RewardImage';
 import ListFooter from '../../components/ListFooter';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
@@ -19,44 +21,81 @@ function formatDate(iso) {
 }
 
 const FILTERS = [
-  { key: 'pending', label: 'Pending' },
+  { key: 'pending', label: 'To hand over' },
   { key: 'all', label: 'All' },
 ];
 
-export default function RedeemRequestsScreen({ requests, fetchPage, reloadKey, onApprove, onReject }) {
+// The gift handover photo is camera-only and carries the same date/time/GPS stamp as a fuel proof.
+const HANDOVER_LABELS = {
+  empty: 'Photograph the customer receiving the gift',
+  take: 'Take handover photo',
+  retake: 'Retake handover photo',
+  cameraDenied: 'Camera permission is required to photograph the handover. Please allow it in settings.',
+  locationDenied: 'Location permission is required to record where the gift was handed over. Please allow it and try again.',
+  note: 'The photo is camera-only and is stamped with the date, time and GPS location when you confirm.',
+};
+
+function statusText(item) {
+  if (item.status === 'approved') return `Gift handed over${item.resolvedBy ? ` · by ${item.resolvedBy}` : ''}`;
+  const who = item.cancelledByCustomer ? 'Cancelled by customer' : `Cancelled${item.resolvedBy ? ` by ${item.resolvedBy}` : ''}`;
+  return item.refunded ? `${who} · points returned` : who;
+}
+
+export default function RedeemRequestsScreen({ requests, fetchPage, reloadKey, onIssue, onReject }) {
   const [filter, setFilter] = useState('pending');
   const [busyId, setBusyId] = useState(null);
+  // The card that is open for a hand-over or a cancellation: { id, mode: 'issue' | 'cancel' }.
+  const [open, setOpen] = useState(null);
+  const [proof, setProof] = useState(null);
+  const [reason, setReason] = useState('');
 
-  // "Pending" is the small queue the app already holds; "All" pages through every request on the server.
+  // "To hand over" is the small queue the app already holds; "All" pages through every request on the server.
   const list = usePagedList(
     (page) => (filter === 'all' ? fetchPage(page) : Promise.resolve({ items: [], hasMore: false })),
     [filter, reloadKey]
   );
   const shown = filter === 'pending' ? requests : list.items;
 
-  async function handleApprove(request) {
+  function openCard(id, mode) {
+    setOpen(open?.id === id && open.mode === mode ? null : { id, mode });
+    setProof(null);
+    setReason('');
+  }
+
+  async function handleIssue(request) {
+    if (!proof?.photoDataUri || !proof.location) {
+      notify('Photo needed', 'Take the handover photo and let the phone read its location before confirming.');
+      return;
+    }
     setBusyId(request.id);
     try {
-      await onApprove(request.id);
+      await onIssue(request.id, proof);
+      setOpen(null);
+      setProof(null);
     } catch (err) {
-      notify('Could not approve', err.message);
+      notify('Could not hand over', err.message);
     } finally {
       setBusyId(null);
     }
   }
 
-  async function handleReject(request) {
+  async function handleCancel(request) {
     setBusyId(request.id);
     try {
-      await onReject(request.id);
+      await onReject(request.id, reason.trim());
+      setOpen(null);
+      setReason('');
     } catch (err) {
-      notify('Could not reject', err.message);
+      notify('Could not cancel', err.message);
     } finally {
       setBusyId(null);
     }
   }
 
   function renderItem({ item }) {
+    const busy = busyId === item.id;
+    const issuing = open?.id === item.id && open.mode === 'issue';
+    const cancelling = open?.id === item.id && open.mode === 'cancel';
     return (
       <View style={styles.card}>
         <View style={styles.cardTop}>
@@ -72,28 +111,75 @@ export default function RedeemRequestsScreen({ requests, fetchPage, reloadKey, o
         </View>
 
         {item.status === 'pending' ? (
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={[styles.actionButton, styles.rejectButton]}
-              disabled={busyId === item.id}
-              onPress={() => handleReject(item)}
-            >
-              <Text style={styles.rejectButtonText}>Reject</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.actionButton, styles.approveButton]}
-              disabled={busyId === item.id}
-              onPress={() => handleApprove(item)}
-            >
-              <Text style={styles.approveButtonText}>{busyId === item.id ? 'Working…' : 'Approve'}</Text>
-            </Pressable>
-          </View>
+          <>
+            <Text style={styles.hint}>
+              {item.pointsDeducted
+                ? 'Points are already taken from the customer. Hand over the gift at the counter, then upload the photo.'
+                : 'Points are taken from the customer when you confirm the handover.'}
+            </Text>
+            <View style={styles.actionsRow}>
+              <Pressable
+                style={[styles.actionButton, styles.rejectButton, cancelling && styles.rejectButtonOpen]}
+                disabled={busy}
+                onPress={() => openCard(item.id, 'cancel')}
+              >
+                <Text style={styles.rejectButtonText}>{item.pointsDeducted ? 'Cancel & refund' : 'Cancel'}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionButton, styles.approveButton, issuing && styles.approveButtonOpen]}
+                disabled={busy}
+                onPress={() => openCard(item.id, 'issue')}
+              >
+                <Text style={styles.approveButtonText}>Hand over gift</Text>
+              </Pressable>
+            </View>
+
+            {issuing ? (
+              <View style={styles.panel}>
+                <DashboardProof enabled labels={HANDOVER_LABELS} value={proof} onChange={setProof} />
+                <Pressable
+                  style={[styles.confirmButton, (busy || !proof?.photoDataUri || !proof?.location) && styles.disabled]}
+                  disabled={busy || !proof?.photoDataUri || !proof?.location}
+                  onPress={() => handleIssue(item)}
+                >
+                  <Text style={styles.confirmButtonText}>{busy ? 'Saving…' : 'Confirm gift handed over'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {cancelling ? (
+              <View style={styles.panel}>
+                <TextInput
+                  style={styles.reasonInput}
+                  value={reason}
+                  onChangeText={setReason}
+                  placeholder="Reason (optional, shown to the customer)"
+                  placeholderTextColor={COLORS.textMuted}
+                  maxLength={300}
+                />
+                <Pressable
+                  style={[styles.confirmButton, styles.confirmDanger, busy && styles.disabled]}
+                  disabled={busy}
+                  onPress={() => handleCancel(item)}
+                >
+                  <Text style={styles.confirmButtonText}>
+                    {busy ? 'Working…' : item.pointsDeducted ? 'Cancel request and return points' : 'Cancel request'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
         ) : (
           <View style={styles.statusRow}>
             <Text style={[styles.statusBadge, item.status === 'approved' ? styles.approvedBadge : styles.rejectedBadge]}>
-              {item.status === 'approved' ? 'Approved' : 'Rejected'}
-              {item.resolvedBy ? ` · by ${item.resolvedBy}` : ''}
+              {statusText(item)}
             </Text>
+            {item.status === 'rejected' && item.rejectionReason ? (
+              <Text style={styles.reasonLine}>Reason: {item.rejectionReason}</Text>
+            ) : null}
+            {item.status === 'approved' && item.hasHandoverPhoto ? (
+              <ClaimPhoto path={`/redemption-requests/${item.id}/photo`} claimId={item.id} style={styles.handoverPhoto} />
+            ) : null}
           </View>
         )}
       </View>
@@ -104,7 +190,7 @@ export default function RedeemRequestsScreen({ requests, fetchPage, reloadKey, o
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Redeem Requests</Text>
-        <Text style={styles.headerSubtitle}>{requests.filter((r) => r.status === 'pending').length} awaiting review</Text>
+        <Text style={styles.headerSubtitle}>{requests.filter((r) => r.status === 'pending').length} waiting for hand-over</Text>
       </View>
 
       <View style={styles.filterRow}>
@@ -206,9 +292,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.md,
   },
-  icon: {
-    fontSize: 30,
-  },
   cardText: {
     flex: 1,
   },
@@ -232,10 +315,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary,
   },
+  hint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: SPACING.md,
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   actionButton: {
     flex: 1,
@@ -246,6 +334,9 @@ const styles = StyleSheet.create({
   approveButton: {
     backgroundColor: COLORS.success,
   },
+  approveButtonOpen: {
+    opacity: 0.8,
+  },
   approveButtonText: {
     color: COLORS.textOnPrimary,
     fontWeight: '700',
@@ -254,13 +345,52 @@ const styles = StyleSheet.create({
   rejectButton: {
     backgroundColor: '#FEE2E2',
   },
+  rejectButtonOpen: {
+    borderWidth: 1,
+    borderColor: COLORS.danger,
+  },
   rejectButtonText: {
     color: COLORS.danger,
     fontWeight: '700',
     fontSize: 13,
   },
+  panel: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  reasonInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.borderInput,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONT.body,
+    color: COLORS.textPrimary,
+  },
+  confirmButton: {
+    backgroundColor: COLORS.success,
+    borderRadius: RADIUS.sm,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  confirmDanger: {
+    backgroundColor: COLORS.danger,
+  },
+  confirmButtonText: {
+    color: COLORS.textOnPrimary,
+    fontWeight: '700',
+    fontSize: FONT.body,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
   statusRow: {
     marginTop: SPACING.md,
+    gap: SPACING.sm,
   },
   statusBadge: {
     alignSelf: 'flex-start',
@@ -278,6 +408,14 @@ const styles = StyleSheet.create({
   rejectedBadge: {
     backgroundColor: '#FEE2E2',
     color: COLORS.danger,
+  },
+  reasonLine: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  handoverPhoto: {
+    width: '100%',
+    height: 170,
   },
   emptyText: {
     textAlign: 'center',

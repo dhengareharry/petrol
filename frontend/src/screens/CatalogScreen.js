@@ -42,8 +42,14 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
   }, [query, language]);
 
   const pendingRewardIds = useMemo(() => new Set(pendingRequests.map((r) => r.rewardId)), [pendingRequests]);
+  // Points already left the balance when a gift was requested. Only requests made before that change (the server says so)
+  // still hold points that are not yet taken.
   const pendingPoints = useMemo(() => pendingRequests.reduce((sum, r) => sum + r.points, 0), [pendingRequests]);
-  const availablePoints = customer.points - pendingPoints;
+  const heldPoints = useMemo(
+    () => pendingRequests.filter((r) => !r.pointsDeducted).reduce((sum, r) => sum + r.points, 0),
+    [pendingRequests]
+  );
+  const availablePoints = customer.points - heldPoints;
 
   async function handleRequest(reward) {
     const confirmed = await confirmAsync(

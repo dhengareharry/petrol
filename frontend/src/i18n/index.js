@@ -121,6 +121,11 @@ function buildApi(language, ready, setLanguage) {
     if (match) return t('ledger.referrer', { name: match[1] });
     match = /^Welcome bonus: you joined using (.+)'s referral code$/.exec(label);
     if (match) return t('ledger.welcome', { name: match[1] });
+    match = /^Refund: (.+)$/.exec(label);
+    if (match) {
+      const refunded = REWARDS.find((r) => r.name === match[1]);
+      return t('ledger.refund', { name: refunded ? rewardName(refunded) : match[1] });
+    }
     const reward = REWARDS.find((r) => r.name === label);
     return reward ? rewardName(reward) : label;
   };

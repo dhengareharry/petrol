@@ -39,6 +39,14 @@ export const toRequest = (r, customer) => ({
   requestedDate: r.requestedAt,
   resolvedDate: r.resolvedAt,
   resolvedBy: r.resolvedBy,
+  // Points leave the balance when the gift is requested (false only for old requests that were paid at hand-over).
+  pointsDeducted: r.pointsDeducted !== false,
+  refunded: Boolean(r.refunded),
+  cancelledByCustomer: Boolean(r.cancelledByCustomer),
+  rejectionReason: r.rejectionReason ?? null,
+  // The photo staff took when handing the gift over, and where.
+  hasHandoverPhoto: Boolean(r.handover?.photoUrl),
+  handoverLocation: r.handover?.location ?? null,
 });
 
 export const toClaim = (c, customer) => ({

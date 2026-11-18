@@ -4,14 +4,15 @@ import { apiRequest } from '../api/client';
 import { useI18n } from '../i18n';
 import { COLORS, RADIUS } from '../theme';
 
-export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
+// Shows a photo the server holds: a fuel proof by default, or any other photo endpoint via `path` (e.g. a gift handover).
+export default function ClaimPhoto({ claimId, path, style, resizeMode = 'cover' }) {
   const [uri, setUri] = useState(null);
   const [missing, setMissing] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
-    apiRequest(`/fuel-claims/${claimId}/photo?as=dataUri`, { timeoutMs: 30000 })
+    apiRequest(`${path ?? `/fuel-claims/${claimId}/photo`}?as=dataUri`, { timeoutMs: 30000 })
       .then((result) => {
         if (cancelled) return;
         if (result?.dataUri) setUri(result.dataUri);
@@ -23,7 +24,7 @@ export default function ClaimPhoto({ claimId, style, resizeMode = 'cover' }) {
     return () => {
       cancelled = true;
     };
-  }, [claimId]);
+  }, [claimId, path]);
 
   if (uri) {
     return <Image source={{ uri }} style={[styles.image, style]} resizeMode={resizeMode} />;

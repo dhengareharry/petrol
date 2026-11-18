@@ -27,6 +27,7 @@ export default function CustomerApp() {
     getCustomerByPhone,
     requests,
     requestRedemption,
+    cancelRedemption,
     claims,
     updateProfileName,
     changePin,
@@ -98,7 +99,7 @@ export default function CustomerApp() {
             }}
           />
         )}
-        {activeTab === 'redemptions' && <RedemptionsScreen customer={customer} requests={requests} claims={claims} />}
+        {activeTab === 'redemptions' && <RedemptionsScreen customer={customer} requests={requests} claims={claims} onCancel={cancelRedemption} />}
     </AppFrame>
   );
 }

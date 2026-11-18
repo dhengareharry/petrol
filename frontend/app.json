@@ -52,7 +52,7 @@
         "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "allowBackup": false,
-      "package": "com.harishdhengare.Pump"
+      "package": "com.oasisfuel.rewards"
     },
     "web": {
       "favicon": "./assets/favicon.png"

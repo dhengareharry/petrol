@@ -257,13 +257,34 @@ export function SessionProvider({ children }) {
     [mutate]
   );
 
-  const approveRequest = useCallback(
-    (id) => mutate(() => apiRequest(`/redemption-requests/${id}/approve`, { method: 'POST' })),
+  // Staff hand the gift over to the customer: the photo (and where it was taken) goes with it. The server stamps the photo.
+  const issueRedemption = useCallback(
+    (id, proof) =>
+      mutate(() =>
+        apiRequest(`/redemption-requests/${id}/issue`, {
+          method: 'POST',
+          timeoutMs: 60000,
+          body: {
+            photoDataUri: proof.photoDataUri,
+            latitude: proof.location.latitude,
+            longitude: proof.location.longitude,
+            ...(proof.location.accuracy != null ? { accuracy: proof.location.accuracy } : {}),
+          },
+        })
+      ),
     [mutate]
   );
 
+  // Staff cancel a request; the points go back to the customer. `reason` is shown to the customer.
   const rejectRequest = useCallback(
-    (id) => mutate(() => apiRequest(`/redemption-requests/${id}/reject`, { method: 'POST' })),
+    (id, reason) =>
+      mutate(() => apiRequest(`/redemption-requests/${id}/reject`, { method: 'POST', body: reason ? { reason } : {} })),
+    [mutate]
+  );
+
+  // The customer withdraws their own pending request; the points come back.
+  const cancelRedemption = useCallback(
+    (id) => mutate(() => apiRequest(`/redemption-requests/${id}/cancel`, { method: 'POST' })),
     [mutate]
   );
 
@@ -374,8 +395,9 @@ export function SessionProvider({ children }) {
       deleteAccount,
       creditPoints,
       requestRedemption,
-      approveRequest,
+      issueRedemption,
       rejectRequest,
+      cancelRedemption,
       approveFuelClaim,
       rejectFuelClaim,
       updateProfileName,
@@ -411,8 +433,9 @@ export function SessionProvider({ children }) {
       deleteAccount,
       creditPoints,
       requestRedemption,
-      approveRequest,
+      issueRedemption,
       rejectRequest,
+      cancelRedemption,
       approveFuelClaim,
       rejectFuelClaim,
       updateProfileName,

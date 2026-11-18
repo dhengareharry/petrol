@@ -58,7 +58,7 @@ export default function AdminApp() {
     addCustomer,
     resetCustomerPin,
     creditPoints,
-    approveRequest,
+    issueRedemption,
     rejectRequest,
     approveFuelClaim,
     rejectFuelClaim,
@@ -77,8 +77,6 @@ export default function AdminApp() {
   const credit = (phone, litres) => creditPoints(phone, litres, by);
   const approveClaim = (id, amount) => approveFuelClaim(id, amount, by);
   const rejectClaim = (id, reason) => rejectFuelClaim(id, reason);
-  const approveRedeem = (id) => approveRequest(id, by);
-  const rejectRedeem = (id) => rejectRequest(id, by);
 
   // Admin alert: vehicles that have not filled fuel for a while (the server counts them and sets the threshold, 30 days).
   const inactiveCount = isAdmin ? (stats?.inactiveVehicles ?? 0) : 0;
@@ -197,8 +195,8 @@ export default function AdminApp() {
           requests={requests}
           fetchPage={fetchRequestPage}
           reloadKey={dataVersion}
-          onApprove={approveRedeem}
-          onReject={rejectRedeem}
+          onIssue={issueRedemption}
+          onReject={rejectRequest}
         />
       );
     }
