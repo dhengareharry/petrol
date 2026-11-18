@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { apiRequest } from '../../api/client';
+import ClaimPhoto from '../../components/ClaimPhoto';
 import RewardImage from '../../components/RewardImage';
 import { ISSUE_LOG_DEFAULT_DAYS } from '../../utils/issueLog';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
@@ -8,7 +9,9 @@ import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 const PERIODS = [
   { key: '7', label: '7 days' },
   { key: '30', label: '30 days' },
-  { key: String(ISSUE_LOG_DEFAULT_DAYS), label: `${ISSUE_LOG_DEFAULT_DAYS} days` },
+  { key: '60', label: '60 days' },
+  { key: '90', label: '90 days' },
+  { key: '180', label: '6 months' },
   { key: 'all', label: 'All time' },
   { key: 'custom', label: 'Custom' },
 ];
@@ -18,6 +21,19 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// The handover photo is only fetched when asked for, so a long list does not download a photo per row.
+function HandoverPhoto({ id }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <>
+      <Pressable style={styles.photoToggle} onPress={() => setShown((v) => !v)}>
+        <Text style={styles.photoToggleText}>{shown ? 'Hide handover photo' : 'View handover photo'}</Text>
+      </Pressable>
+      {shown ? <ClaimPhoto path={`/redemption-requests/${id}/photo`} claimId={id} style={styles.handoverPhoto} /> : null}
+    </>
+  );
 }
 
 // The report is computed by the server over every issued item (nothing is ever deleted), so it stays correct however many
@@ -72,6 +88,7 @@ export default function IssuedItemsScreen({ onBack }) {
   const summary = report?.summary;
   const items = report?.items ?? [];
   const byItem = report?.byItem ?? [];
+  const byCustomer = report?.byCustomer ?? [];
 
   return (
     <View style={styles.container}>
@@ -79,8 +96,8 @@ export default function IssuedItemsScreen({ onBack }) {
         <Pressable onPress={onBack}>
           <Text style={styles.backText}>‹ Dashboard</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Items Issued Log</Text>
-        <Text style={styles.headerSubtitle}>Rewards handed over to customers</Text>
+        <Text style={styles.headerTitle}>Gifts Allotted</Text>
+        <Text style={styles.headerSubtitle}>Track record of gifts handed over to customers</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -158,24 +175,44 @@ export default function IssuedItemsScreen({ onBack }) {
               </View>
             )}
 
+            {byCustomer.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>By customer</Text>
+                {byCustomer.map((c) => (
+                  <View key={c.customerId} style={styles.itemRow}>
+                    <View style={styles.itemName}>
+                      <Text style={styles.customerName}>{c.name}</Text>
+                      <Text style={styles.customerPhone}>{c.phone}</Text>
+                    </View>
+                    <Text style={styles.itemCount}>
+                      {c.count} gift{c.count === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <Text style={styles.sectionTitle}>Issue records</Text>
             {items.length === 0 ? (
               <Text style={styles.emptyText}>No items were issued in this period.</Text>
             ) : (
               items.map((r) => (
                 <View key={r.id} style={styles.recordCard}>
-                  <RewardImage id={r.reward.id} size={56} />
-                  <View style={styles.recordText}>
-                    <Text style={styles.recordName}>{r.reward.name}</Text>
-                    <Text style={styles.recordCustomer}>
-                      {r.customer?.name} · {r.customer?.phone}
-                    </Text>
-                    <Text style={styles.recordMeta}>
-                      {formatDate(r.resolvedAt)}
-                      {r.resolvedBy ? ` · issued by ${r.resolvedBy}` : ''}
-                    </Text>
+                  <View style={styles.recordRow}>
+                    <RewardImage id={r.reward.id} size={56} />
+                    <View style={styles.recordText}>
+                      <Text style={styles.recordName}>{r.reward.name}</Text>
+                      <Text style={styles.recordCustomer}>
+                        {r.customer?.name} · {r.customer?.phone}
+                      </Text>
+                      <Text style={styles.recordMeta}>
+                        {formatDate(r.resolvedAt)}
+                        {r.resolvedBy ? ` · handed over by ${r.resolvedBy}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.recordPoints}>{r.reward.points.toLocaleString()} pts</Text>
                   </View>
-                  <Text style={styles.recordPoints}>{r.reward.points.toLocaleString()} pts</Text>
+                  {r.handover?.photoUrl ? <HandoverPhoto id={r.id} /> : null}
                 </View>
               ))
             )}
@@ -297,12 +334,38 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   recordCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  recordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.md,
+  },
+  customerName: {
+    fontSize: FONT.body,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  customerPhone: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  photoToggle: {
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+  },
+  photoToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  handoverPhoto: {
+    width: '100%',
+    height: 180,
   },
   recordIcon: {
     fontSize: 30,

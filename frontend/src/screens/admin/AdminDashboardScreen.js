@@ -3,8 +3,14 @@ import Icon from '../../components/Icon';
 import IconTile from '../../components/IconTile';
 import RewardImage from '../../components/RewardImage';
 import ScreenHeader from '../../components/ScreenHeader';
-import { ISSUE_LOG_DEFAULT_DAYS } from '../../utils/issueLog';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
+
+const GIFT_PERIODS = [
+  { key: 'last30Days', label: '30 days' },
+  { key: 'last60Days', label: '60 days' },
+  { key: 'last90Days', label: '90 days' },
+  { key: 'allTime', label: 'All time' },
+];
 
 export default function AdminDashboardScreen({
   stats,
@@ -16,6 +22,7 @@ export default function AdminDashboardScreen({
   onOpenInactive,
 }) {
   const issuedRecent = stats?.itemsIssuedLast45Days ?? 0;
+  const gifts = stats?.giftsIssued;
   const totalCustomers = stats?.totalCustomers ?? 0;
   const pending = requests.filter((r) => r.status === 'pending');
   const totalOutstanding = stats?.outstandingPoints ?? 0;
@@ -55,15 +62,27 @@ export default function AdminDashboardScreen({
           <Icon name="chevronRight" size={20} color={COLORS.textMuted} />
         </Pressable>
 
-        <Pressable style={styles.issuedButton} onPress={onOpenIssuedLog}>
-          <IconTile name="package" size={44} color={COLORS.accent} background={COLORS.accentSoft} />
-          <View style={styles.issuedText}>
-            <Text style={styles.issuedTitle}>Items Issued Log</Text>
-            <Text style={styles.issuedSubtitle}>
-              {issuedRecent} item{issuedRecent === 1 ? '' : 's'} issued in the last {ISSUE_LOG_DEFAULT_DAYS} days
-            </Text>
+        <Pressable style={styles.giftsCard} onPress={onOpenIssuedLog} accessibilityRole="button" accessibilityLabel="Gifts allotted">
+          <View style={styles.giftsHeader}>
+            <IconTile name="package" size={44} color={COLORS.accent} background={COLORS.accentSoft} />
+            <View style={styles.issuedText}>
+              <Text style={styles.issuedTitle}>Gifts allotted to customers</Text>
+              <Text style={styles.issuedSubtitle}>Handed over with a photo. Tap for the full record.</Text>
+            </View>
+            <Icon name="chevronRight" size={20} color={COLORS.textMuted} />
           </View>
-          <Icon name="chevronRight" size={20} color={COLORS.textMuted} />
+          <View style={styles.giftsRow}>
+            {GIFT_PERIODS.map((p) => {
+              const entry = gifts?.[p.key];
+              return (
+                <View key={p.key} style={styles.giftsTile}>
+                  <Text style={styles.giftsValue}>{(entry?.count ?? (p.key === 'last30Days' ? issuedRecent : 0)).toLocaleString()}</Text>
+                  <Text style={styles.giftsLabel}>{p.label}</Text>
+                  {entry ? <Text style={styles.giftsPoints}>{entry.points.toLocaleString()} pts</Text> : null}
+                </View>
+              );
+            })}
+          </View>
         </Pressable>
 
         <Pressable style={styles.issuedButton} onPress={onOpenSettings}>
@@ -198,6 +217,46 @@ const styles = StyleSheet.create({
   },
   issuedIcon: {
     fontSize: 28,
+  },
+  giftsCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
+    gap: SPACING.md,
+  },
+  giftsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  giftsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  giftsTile: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+    alignItems: 'center',
+  },
+  giftsValue: {
+    color: COLORS.textOnPrimary,
+    fontSize: FONT.heading,
+    fontWeight: '800',
+  },
+  giftsLabel: {
+    color: COLORS.textOnPrimaryMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  giftsPoints: {
+    color: COLORS.textOnPrimaryMuted,
+    fontSize: 10,
+    marginTop: 2,
   },
   issuedText: {
     flex: 1,

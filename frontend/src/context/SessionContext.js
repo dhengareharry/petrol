@@ -222,32 +222,40 @@ export function SessionProvider({ children }) {
   const creditPoints = useCallback(
     (phone, { amountRupees, proof }) =>
       mutate(async () => {
+        // A duplicate means the entry (and its points) already went through, perhaps on a retry after a bad connection, so the
+        // screen is refreshed to show the balance as it really is, and the error is still shown.
         const known = staffCustomersRef.current[phone];
         if (!known) throw new Error('Customer not found.');
-        const result = await apiRequest('/fuel-entries', {
-          method: 'POST',
-          timeoutMs: 60000, // the photo is a few hundred KB; allow for slow mobile data
-          body: {
-            customerId: known.id,
-            amountRupees,
-            ...(proof
-              ? {
-                  proof: {
-                    ...(proof.vehicleId ? { vehicleId: proof.vehicleId } : { vehicleNumber: proof.vehicleNumber }),
-                    latitude: proof.location.latitude,
-                    longitude: proof.location.longitude,
-                    ...(proof.location.accuracy != null ? { accuracy: proof.location.accuracy } : {}),
-                    photoDataUri: proof.photoDataUri,
-                  },
-                }
-              : {}),
-          },
-        });
+        let result;
+        try {
+          result = await apiRequest('/fuel-entries', {
+            method: 'POST',
+            timeoutMs: 60000, // the photo is a few hundred KB; allow for slow mobile data
+            body: {
+              customerId: known.id,
+              amountRupees,
+              ...(proof
+                ? {
+                    proof: {
+                      ...(proof.vehicleId ? { vehicleId: proof.vehicleId } : { vehicleNumber: proof.vehicleNumber }),
+                      latitude: proof.location.latitude,
+                      longitude: proof.location.longitude,
+                      ...(proof.location.accuracy != null ? { accuracy: proof.location.accuracy } : {}),
+                      photoDataUri: proof.photoDataUri,
+                    },
+                  }
+                : {}),
+            },
+          });
+        } catch (err) {
+          if (err?.code === 'CONFLICT') await openCustomer(phone).catch(() => undefined);
+          throw err;
+        }
         const updated = toCustomer(result.customer);
         rememberCustomers([updated]);
         return updated;
       }),
-    [mutate, rememberCustomers]
+    [mutate, rememberCustomers, openCustomer]
   );
 
   // ---- redemption requests ----

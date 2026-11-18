@@ -29,6 +29,8 @@ const SERVER_MESSAGES = {
   'Not enough available points for this reward.': 'err.notEnoughPoints',
   'Enter the vehicle number along with the vehicle model.': 'err.vehicleNeedsNumber',
   'Vehicle not found.': 'err.vehicleNotFound',
+  'This vehicle number is already on your profile.': 'err.plateOwn',
+  'This vehicle number is already registered to another customer.': 'err.plateOther',
   'This account is no longer active.': 'err.notActive',
   'This account has been disabled. Contact an admin.': 'err.disabled',
   'Enter a valid 10-digit mobile number (it must start with 6, 7, 8 or 9).': 'phone.invalidStart',

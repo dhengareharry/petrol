@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Icon from '../components/Icon';
 import IconTile from '../components/IconTile';
@@ -55,6 +55,21 @@ export default function ProfileScreen({
   const [confirmPin, setConfirmPin] = useState('');
   const [pinMessage, setPinMessage] = useState(null);
 
+  // One save at a time: a second tap while the first is still on its way is ignored, so nothing is ever submitted twice.
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  async function guarded(action, setMessage, okText) {
+    if (busyRef.current) return false;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      return await attempt(action, setMessage, okText);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
+
   const [showDelete, setShowDelete] = useState(false);
   const [deletePin, setDeletePin] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -73,7 +88,7 @@ export default function ProfileScreen({
       setNameMessage({ ok: false, text: t('profile.nameRequired') });
       return;
     }
-    attempt(() => onUpdateName(customer.phone, name), setNameMessage, t('profile.updated'));
+    guarded(() => onUpdateName(customer.phone, name), setNameMessage, t('profile.updated'));
   }
 
   async function confirmDelete() {
@@ -96,7 +111,7 @@ export default function ProfileScreen({
       return;
     }
     const input = { model: vehicleModel, number: vehicleNumber };
-    const ok = await attempt(
+    const ok = await guarded(
       () => (editing === 'new' ? onAddVehicle(customer.phone, input) : onUpdateVehicle(customer.phone, editing, input)),
       setVehicleMessage,
       editing === 'new' ? t('profile.vehicleAdded') : t('profile.vehicleUpdated')
@@ -106,7 +121,7 @@ export default function ProfileScreen({
 
   async function deleteVehicle(id) {
     setConfirmDeleteId(null);
-    await attempt(() => onRemoveVehicle(customer.phone, id), setVehicleMessage, t('profile.vehicleRemoved'));
+    await guarded(() => onRemoveVehicle(customer.phone, id), setVehicleMessage, t('profile.vehicleRemoved'));
   }
 
   async function savePin() {
@@ -122,7 +137,7 @@ export default function ProfileScreen({
       setPinMessage({ ok: false, text: t('profile.pinMismatch') });
       return;
     }
-    const ok = await attempt(() => onChangePin(customer.phone, currentPin, newPin), setPinMessage, t('profile.pinChanged'));
+    const ok = await guarded(() => onChangePin(customer.phone, currentPin, newPin), setPinMessage, t('profile.pinChanged'));
     if (ok) {
       setCurrentPin('');
       setNewPin('');
@@ -150,8 +165,8 @@ export default function ProfileScreen({
           <Text style={styles.readonly}>{t('profile.mobileNote', { phone: customer.phone })}</Text>
           <Message message={nameMessage} />
           <Pressable
-            style={[styles.primaryButton, !nameChanged && styles.disabled]}
-            disabled={!nameChanged}
+            style={[styles.primaryButton, (!nameChanged || busy) && styles.disabled]}
+            disabled={!nameChanged || busy}
             onPress={saveName}
           >
             <Text style={styles.primaryButtonText}>{t('profile.save')}</Text>
@@ -229,7 +244,7 @@ export default function ProfileScreen({
                 <Pressable style={[styles.formButton, styles.cancelButton]} onPress={() => setEditing(null)}>
                   <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
-                <Pressable style={[styles.formButton, styles.saveButton]} onPress={saveVehicle}>
+                <Pressable style={[styles.formButton, styles.saveButton, busy && styles.disabled]} disabled={busy} onPress={saveVehicle}>
                   <Text style={styles.saveText}>{editing === 'new' ? t('profile.addVehicle') : t('profile.saveVehicle')}</Text>
                 </Pressable>
               </View>
@@ -271,7 +286,7 @@ export default function ProfileScreen({
             maxLength={4}
           />
           <Message message={pinMessage} />
-          <Pressable style={styles.primaryButton} onPress={savePin}>
+          <Pressable style={[styles.primaryButton, busy && styles.disabled]} disabled={busy} onPress={savePin}>
             <Text style={styles.primaryButtonText}>{t('profile.changePin')}</Text>
           </Pressable>
         </View>

@@ -15,6 +15,7 @@ import StaffScreen from '../screens/admin/StaffScreen';
 import CustomersScreen from '../screens/CustomersScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ADMIN_TABS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'chart' },
@@ -33,6 +34,7 @@ const CASHIER_TABS = [
 
 export default function AdminApp() {
   const { logout, role, staff: sessionStaff } = useAuth();
+  const confirm = useConfirm();
   const isAdmin = role === 'admin';
   const tabs = isAdmin ? ADMIN_TABS : CASHIER_TABS;
 
@@ -98,6 +100,18 @@ export default function AdminApp() {
   useEffect(() => {
     if (viewingPhone) openCustomer(viewingPhone).catch(() => undefined);
   }, [viewingPhone, viewingPoints, viewingBalance, openCustomer]);
+
+  async function confirmLogout() {
+    const ok = await confirm({
+      title: 'Log out?',
+      message: 'You will need to sign in again to use the staff panel.',
+      confirmLabel: 'Logout',
+      cancelLabel: 'Stay signed in',
+      destructive: true,
+      icon: 'logout',
+    });
+    if (ok) await logout();
+  }
 
   function goToTab(key) {
     setViewingPhone(null);
@@ -236,7 +250,7 @@ export default function AdminApp() {
         actions: [
           ...(isAdmin ? [{ icon: 'bell', label: 'Alerts', badge: inactiveCount, onPress: () => setInactiveOpen(true) }] : []),
           { icon: 'user', label: 'Account', onPress: () => setAccountOpen(true) },
-          { icon: 'logout', label: 'Logout', onPress: logout },
+          { icon: 'logout', label: 'Logout', onPress: confirmLogout },
         ],
       }}
       tabs={tabs.map((tab) => ({

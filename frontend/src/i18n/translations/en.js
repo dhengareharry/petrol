@@ -4,6 +4,8 @@ const en = {
   // ---- shared ----
   'common.loading': 'Loading…',
   'common.logout': 'Logout',
+  'logout.title': 'Log out?',
+  'logout.text': 'You will need to sign in again with your mobile number and PIN.',
   'common.cancel': 'Cancel',
   'common.tryAgain': 'Try again',
   'common.loadMore': 'Load more',
@@ -211,6 +213,8 @@ const en = {
   'err.notEnoughPoints': 'Not enough available points for this reward.',
   'err.vehicleNeedsNumber': 'Enter the vehicle number along with the vehicle model.',
   'err.vehicleNotFound': 'Vehicle not found.',
+  'err.plateOwn': 'This vehicle number is already on your profile.',
+  'err.plateOther': 'This vehicle number is already registered to another customer. If it is yours, please contact the pump staff.',
   'err.notActive': 'This account is no longer active.',
   'err.disabled': 'This account has been disabled. Contact an admin.',
 

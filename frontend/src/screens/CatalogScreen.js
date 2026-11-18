@@ -3,22 +3,11 @@ import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View
 import GradientBox from '../components/GradientBox';
 import Icon from '../components/Icon';
 import RewardImage from '../components/RewardImage';
+import { useConfirm } from '../context/ConfirmContext';
 import { REWARDS } from '../data/rewards';
 import { useI18n } from '../i18n';
 import useLayout from '../utils/useLayout';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
-
-function confirmAsync(title, message, buttons) {
-  if (Platform.OS === 'web') {
-    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  }
-  return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      { text: buttons.cancel, style: 'cancel', onPress: () => resolve(false) },
-      { text: buttons.confirm, onPress: () => resolve(true) },
-    ]);
-  });
-}
 
 function notify(title, message) {
   if (Platform.OS === 'web') {
@@ -33,6 +22,7 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
   const [query, setQuery] = useState('');
   const { rewardColumns } = useLayout();
   const { t, language, rewardName, errorText } = useI18n();
+  const confirm = useConfirm();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,11 +42,13 @@ export default function CatalogScreen({ customer, pendingRequests, onRequestRede
   const availablePoints = customer.points - heldPoints;
 
   async function handleRequest(reward) {
-    const confirmed = await confirmAsync(
-      t('catalog.confirmTitle'),
-      t('catalog.confirmText', { name: rewardName(reward), points: reward.points.toLocaleString() }),
-      { cancel: t('common.cancel'), confirm: t('catalog.request') }
-    );
+    const confirmed = await confirm({
+      title: t('catalog.confirmTitle'),
+      message: t('catalog.confirmText', { name: rewardName(reward), points: reward.points.toLocaleString() }),
+      confirmLabel: t('catalog.request'),
+      cancelLabel: t('common.cancel'),
+      icon: 'gift',
+    });
     if (!confirmed) return;
 
     setRequestingId(reward.id);

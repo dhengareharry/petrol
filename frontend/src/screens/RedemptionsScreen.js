@@ -3,6 +3,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import ClaimPhoto from '../components/ClaimPhoto';
 import RewardImage from '../components/RewardImage';
 import ScreenHeader from '../components/ScreenHeader';
+import { useConfirm } from '../context/ConfirmContext';
 import { useI18n } from '../i18n';
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from '../theme';
 
@@ -16,18 +17,6 @@ const STATUS_STYLE_KEY = {
 const PERIODS = [30, 45, 90];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function confirmAsync(title, message, buttons) {
-  if (Platform.OS === 'web') {
-    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  }
-  return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      { text: buttons.cancel, style: 'cancel', onPress: () => resolve(false) },
-      { text: buttons.confirm, style: 'destructive', onPress: () => resolve(true) },
-    ]);
-  });
-}
-
 function notify(title, message) {
   if (Platform.OS === 'web') {
     window.alert(`${title}\n\n${message}`);
@@ -38,6 +27,7 @@ function notify(title, message) {
 
 export default function RedemptionsScreen({ customer, requests, claims = [], onCancel }) {
   const { t, rewardName, formatDate, errorText } = useI18n();
+  const confirm = useConfirm();
   const [period, setPeriod] = useState(30);
   const [cancellingId, setCancellingId] = useState(null);
   const myRequests = requests.filter((r) => r.customerPhone === customer.phone);
@@ -68,11 +58,14 @@ export default function RedemptionsScreen({ customer, requests, claims = [], onC
   );
 
   async function handleCancel(item) {
-    const confirmed = await confirmAsync(
-      t('history.cancelTitle'),
-      t('history.cancelText', { name: rewardName({ id: item.rewardId, name: item.rewardName }), points: item.points.toLocaleString() }),
-      { cancel: t('history.keep'), confirm: t('history.cancelConfirm') }
-    );
+    const confirmed = await confirm({
+      title: t('history.cancelTitle'),
+      message: t('history.cancelText', { name: rewardName({ id: item.rewardId, name: item.rewardName }), points: item.points.toLocaleString() }),
+      confirmLabel: t('history.cancelConfirm'),
+      cancelLabel: t('history.keep'),
+      destructive: true,
+      icon: 'xCircle',
+    });
     if (!confirmed) return;
     setCancellingId(item.id);
     try {

@@ -3,6 +3,8 @@ const hi = {
   // ---- shared ----
   'common.loading': 'लोड हो रहा है…',
   'common.logout': 'लॉग आउट',
+  'logout.title': 'लॉग आउट करें?',
+  'logout.text': 'दोबारा मोबाइल नंबर और PIN से साइन इन करना होगा।',
   'common.cancel': 'रद्द करें',
   'common.tryAgain': 'फिर से कोशिश करें',
   'common.loadMore': 'और दिखाएँ',
@@ -210,6 +212,8 @@ const hi = {
   'err.notEnoughPoints': 'इस रिवॉर्ड के लिए पर्याप्त पॉइंट उपलब्ध नहीं हैं।',
   'err.vehicleNeedsNumber': 'वाहन के मॉडल के साथ वाहन नंबर भी डालें।',
   'err.vehicleNotFound': 'वाहन नहीं मिला।',
+  'err.plateOwn': 'यह वाहन नंबर पहले से आपकी प्रोफ़ाइल में है।',
+  'err.plateOther': 'यह वाहन नंबर किसी और ग्राहक के नाम पर दर्ज है। अगर यह आपका है, तो कृपया पंप स्टाफ से संपर्क करें।',
   'err.notActive': 'यह खाता अब सक्रिय नहीं है।',
   'err.disabled': 'यह खाता बंद कर दिया गया है। एडमिन से संपर्क करें।',
 

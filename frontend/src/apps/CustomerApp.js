@@ -10,6 +10,7 @@ import RedemptionsScreen from '../screens/RedemptionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import { useSession } from '../context/SessionContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { COLORS, SPACING } from '../theme';
 
 const TABS = [
@@ -23,6 +24,7 @@ export default function CustomerApp() {
   const [activeTab, setActiveTab] = useState('home');
   const { t } = useI18n();
   const { customerPhone, logout } = useAuth();
+  const confirm = useConfirm();
   const {
     getCustomerByPhone,
     requests,
@@ -40,6 +42,18 @@ export default function CustomerApp() {
   } = useSession();
 
   const customer = getCustomerByPhone(customerPhone);
+
+  async function confirmLogout() {
+    const ok = await confirm({
+      title: t('logout.title'),
+      message: t('logout.text'),
+      confirmLabel: t('common.logout'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+      icon: 'logout',
+    });
+    if (ok) await logout();
+  }
 
   if (!customer) {
     return (
@@ -66,7 +80,7 @@ export default function CustomerApp() {
       header={{
         eyebrow: t('app.welcomeBack'),
         title: customer.name,
-        actions: [{ icon: 'logout', label: t('common.logout'), onPress: logout }],
+        actions: [{ icon: 'logout', label: t('common.logout'), onPress: confirmLogout }],
       }}
       tabs={TABS.map((tab) => ({ ...tab, label: t(tab.labelKey) }))}
       activeKey={activeTab}

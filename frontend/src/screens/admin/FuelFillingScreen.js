@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import usePagedList from '../../api/usePagedList';
 import ListFooter from '../../components/ListFooter';
 import TierIcon from '../../components/TierIcon';
@@ -11,6 +11,7 @@ import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 export default function FuelFillingScreen({ fetchCustomers, reloadKey, onCreditPoints, getCustomerByPhone }) {
   const [query, setQuery] = useState('');
   const [selectedPhone, setSelectedPhone] = useState(null);
+  const scrollRef = useRef(null);
 
   // Search runs on the server (name, phone or vehicle number) and results arrive a page at a time.
   const [searchText, setSearchText] = useState('');
@@ -49,7 +50,13 @@ export default function FuelFillingScreen({ fetchCustomers, reloadKey, onCreditP
           <Text style={styles.headerTitle}>Fuel Filling</Text>
         </View>
 
-        <View style={styles.content}>
+        {/* Scrollable: on a phone the form (vehicle, amount, photo, Save) is taller than the screen. */}
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.customerCard}>
             <Text style={styles.customerName}>{selectedCustomer.name}</Text>
             <Text style={styles.customerLine}>
@@ -59,8 +66,13 @@ export default function FuelFillingScreen({ fetchCustomers, reloadKey, onCreditP
             <Text style={styles.customerBalance}>{selectedCustomer.points.toLocaleString()} pts balance</Text>
           </View>
 
-          <FuelEntryForm customer={selectedCustomer} onCreditPoints={onCreditPoints} />
-        </View>
+          {/* After a save, jump back to the top so the confirmation and the customer's new balance are visible. */}
+          <FuelEntryForm
+            customer={selectedCustomer}
+            onCreditPoints={onCreditPoints}
+            onSaved={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+          />
+        </ScrollView>
       </View>
     );
   }
@@ -134,6 +146,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xxxl,
   },
   customerCard: {
     backgroundColor: COLORS.surface,

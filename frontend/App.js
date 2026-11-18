@@ -8,6 +8,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import AdminApp from './src/apps/AdminApp';
 import CustomerApp from './src/apps/CustomerApp';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ConfirmProvider } from './src/context/ConfirmContext';
 import { RulesProvider } from './src/context/RulesContext';
 import { FixedLanguage, I18nProvider, useI18n } from './src/i18n';
 import { SessionProvider, useSession } from './src/context/SessionContext';
@@ -56,7 +57,9 @@ export default function App() {
             <SessionProvider>
               <View style={styles.root}>
                 <ErrorBoundary>
-                  <AppRouter />
+                  <ConfirmProvider>
+                    <AppRouter />
+                  </ConfirmProvider>
                 </ErrorBoundary>
                 <StatusBar style="light" />
               </View>
