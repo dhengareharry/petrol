@@ -4,6 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import Icon from './Icon';
+import { useRules } from '../context/RulesContext';
+import { checkAtPump, readableDistance } from '../utils/geo';
 import { COLORS, FONT, RADIUS, SPACING } from '../theme';
 
 // Resized + compressed so each photo is a few hundred KB at most (it travels to the server as base64).
@@ -32,11 +34,12 @@ const DEFAULT_LABELS = {
   retake: 'Retake dashboard photo',
   cameraDenied: 'Camera permission is required to photograph the dashboard. Please allow it in settings.',
   locationDenied: 'Location permission is required to record where the fill-up happened. Please allow it and try again.',
-  note: 'The photo is camera-only and is stamped with the date, time and GPS location when the entry is added.',
+  note: 'The photo is camera-only and is stamped with the date, time and GPS location when the entry is added. It must be taken at the pump.',
 };
 
 export default function DashboardProof({ enabled, lockedText, value, onChange, labels: customLabels }) {
   const labels = { ...DEFAULT_LABELS, ...customLabels };
+  const rules = useRules();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -71,7 +74,14 @@ export default function DashboardProof({ enabled, lockedText, value, onChange, l
       } catch {
         setError('Could not read the location. Check that location services are on, then tap "Retry location".');
       }
-      onChange({ photoDataUri, location, takenAt: new Date().toISOString() });
+      // A photo taken away from the pump is not kept: it has to be taken again at the pump.
+      const zone = location ? checkAtPump(rules, location) : null;
+      if (zone && !zone.ok) {
+        setError(zone.problem);
+        onChange(null);
+        return;
+      }
+      onChange({ photoDataUri, location, takenAt: new Date().toISOString(), distanceFromPump: zone?.checked ? zone.distance : null });
     } catch {
       setError('Something went wrong while taking the photo. Please try again.');
     } finally {
@@ -84,7 +94,15 @@ export default function DashboardProof({ enabled, lockedText, value, onChange, l
     setBusy(true);
     try {
       const location = await readLocation();
-      if (location) onChange({ ...value, location });
+      if (location) {
+        const zone = checkAtPump(rules, location);
+        if (!zone.ok) {
+          setError(zone.problem);
+          onChange(null); // the photo was taken before the phone was at the pump, so it has to be retaken there
+        } else {
+          onChange({ ...value, location, distanceFromPump: zone.checked ? zone.distance : null });
+        }
+      }
     } catch {
       setError('Could not read the location. Check that location services are on and try again.');
     } finally {
@@ -130,6 +148,7 @@ export default function DashboardProof({ enabled, lockedText, value, onChange, l
             <Icon name="mapPin" size={14} color={COLORS.success} />
             <Text style={styles.locationOk}>
               Location captured ({value.location.latitude.toFixed(5)}, {value.location.longitude.toFixed(5)})
+              {value.distanceFromPump != null ? ` · ${readableDistance(value.distanceFromPump)} from the pump` : ''}
             </Text>
           </View>
         ) : (

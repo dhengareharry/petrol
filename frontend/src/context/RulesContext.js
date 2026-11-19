@@ -9,6 +9,18 @@ const REFRESH_MS = 60000;
 
 const withDerived = (rules) => ({ ...rules, minFuelLitres: rules.minFuelAmountRupees / rules.fuelRatePerLitre });
 
+// The rules as the server sends them (GET and PATCH /settings share the shape).
+const fromServer = (s) =>
+  withDerived({
+    fuelRatePerLitre: s.fuelRatePerLitre,
+    minFuelAmountRupees: s.minFuelAmountRupees,
+    referralBonusPoints: s.referralBonusPoints,
+    pumpLatitude: s.pumpLatitude ?? null,
+    pumpLongitude: s.pumpLongitude ?? null,
+    geofenceMeters: s.geofenceMeters ?? DEFAULT_RULES.geofenceMeters,
+    otpEnabled: s.otpEnabled === true,
+  });
+
 /** The program rules (₹ per litre, minimum fill-up, referral bonus). The server owns them; admins can change them. */
 export function RulesProvider({ children }) {
   const [rules, setRules] = useState(() => withDerived(DEFAULT_RULES));
@@ -16,14 +28,7 @@ export function RulesProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const latest = await apiRequest('/settings', { authenticated: false });
-      setRules(
-        withDerived({
-          fuelRatePerLitre: latest.fuelRatePerLitre,
-          minFuelAmountRupees: latest.minFuelAmountRupees,
-          referralBonusPoints: latest.referralBonusPoints,
-          otpEnabled: latest.otpEnabled === true,
-        })
-      );
+      setRules(fromServer(latest));
     } catch {
       // offline or the server is down: keep showing the last known rules
     }
@@ -38,14 +43,7 @@ export function RulesProvider({ children }) {
   // Admin only (the server enforces it). Resolves once the new rules are saved and in effect.
   const save = useCallback(async (changes) => {
     const saved = await apiRequest('/settings', { method: 'PATCH', body: changes });
-    setRules(
-      withDerived({
-        fuelRatePerLitre: saved.fuelRatePerLitre,
-        minFuelAmountRupees: saved.minFuelAmountRupees,
-        referralBonusPoints: saved.referralBonusPoints,
-        otpEnabled: saved.otpEnabled === true,
-      })
-    );
+    setRules(fromServer(saved));
   }, []);
 
   const value = useMemo(() => ({ ...rules, refresh, save }), [rules, refresh, save]);

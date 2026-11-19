@@ -5,6 +5,11 @@ export const DEFAULT_RULES = {
   fuelRatePerLitre: 100,
   minFuelAmountRupees: 500,
   referralBonusPoints: 100,
+  // Where the pump is, and how close to it (metres) a fuel or gift-handover photo must be taken. The location is null until an
+  // admin sets it, and nothing is checked until then.
+  pumpLatitude: null,
+  pumpLongitude: null,
+  geofenceMeters: 200,
   // SMS verification is off unless the server says otherwise (GET /settings), so the app never asks for a code it can't get.
   otpEnabled: false,
 };

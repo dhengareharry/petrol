@@ -5,6 +5,7 @@ import ClaimPhoto from '../../components/ClaimPhoto';
 import Icon from '../../components/Icon';
 import ListFooter from '../../components/ListFooter';
 import { useRules } from '../../context/RulesContext';
+import { formatRate } from '../../utils/money';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
 
 function notify(title, message) {
@@ -79,7 +80,7 @@ function ClaimCard({ claim, onApprove, onReject }) {
           />
           <Text style={styles.hint}>
             {Number(amount) >= MIN_FUEL_AMOUNT_RUPEES
-              ? `Credits ${approvedPoints} points at ₹${FUEL_RATE_PER_LITRE}/ltr`
+              ? `Credits ${approvedPoints} points at ₹${formatRate(FUEL_RATE_PER_LITRE)}/ltr`
               : `Minimum ₹${MIN_FUEL_AMOUNT_RUPEES} to qualify`}
           </Text>
           <Text style={styles.fieldLabel}>Reason if rejecting (the customer will see it)</Text>

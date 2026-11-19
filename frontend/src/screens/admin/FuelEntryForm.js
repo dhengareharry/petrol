@@ -6,6 +6,7 @@ import RewardImage from '../../components/RewardImage';
 import VehicleNumberInput from '../../components/VehicleNumberInput';
 import { REWARDS } from '../../data/rewards';
 import { useRules } from '../../context/RulesContext';
+import { formatLitres, formatRate } from '../../utils/money';
 import { MAX_FUEL_LITRES, MAX_FUEL_RUPEES } from '../../utils/validation';
 import { isValidVehicleNumber, vehicleLabel } from '../../utils/vehicles';
 import { COLORS, FONT, RADIUS, SPACING } from '../../theme';
@@ -74,7 +75,7 @@ export default function FuelEntryForm({ customer, onCreditPoints, onSaved }) {
     if (!amountValid) {
       notify(
         'Entry too small',
-        `Fuel entry must be at least ₹${MIN_FUEL_AMOUNT_RUPEES} (${MIN_FUEL_LITRES} ltr) to qualify for reward points.`
+        `Fuel entry must be at least ₹${MIN_FUEL_AMOUNT_RUPEES} (${formatLitres(MIN_FUEL_LITRES)} ltr) to qualify for reward points.`
       );
       return;
     }
@@ -155,7 +156,7 @@ export default function FuelEntryForm({ customer, onCreditPoints, onSaved }) {
       )}
 
       <Text style={styles.helperText}>
-        Rate: ₹{FUEL_RATE_PER_LITRE}/ltr · Minimum ₹{MIN_FUEL_AMOUNT_RUPEES} per entry to qualify for points. Every entry needs the vehicle and a camera photo of the dashboard, which is stamped with the date, time and GPS location.
+        Rate: ₹{formatRate(FUEL_RATE_PER_LITRE)}/ltr · Minimum ₹{MIN_FUEL_AMOUNT_RUPEES} per entry to qualify for points. Every entry needs the vehicle and a camera photo of the dashboard, which is stamped with the date, time and GPS location.
       </Text>
 
       <Text style={styles.fieldLabel}>Vehicle fuelled *</Text>
